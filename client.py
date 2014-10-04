@@ -26,7 +26,7 @@ class Client(QApplication):
                 self.on_announce(address.toString())
 
     def on_announce(self, server_address):
-        self.server_list.add_server(server_address)
+        self.server_list.update_server(server_address)
 
     def on_pick_server(self, server_address):
         print('Server {} picked'.format(server_address))
