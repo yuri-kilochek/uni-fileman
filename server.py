@@ -4,6 +4,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtNetwork import *
 
 import config
+from common import *
 
 
 class Announcer:
@@ -18,22 +19,8 @@ class Announcer:
         self._udp_socket.writeDatagram(config.announce_token.encode(), QHostAddress.Broadcast, config.announce_port)
 
 
-class ClientConnection(QObject):
-    def __init__(self, tcp_socket):
-        super().__init__()
-
-        self._tcp_socket = tcp_socket
-
-    @property
-    def address(self):
-        return self._tcp_socket.peerAddress().toString()
-
-    def disconnect(self):
-        self._tcp_socket.close()
-
-
 class ClientAwaiter(QObject):
-    client_connected = pyqtSignal(ClientConnection)
+    client_connected = pyqtSignal(Connection)
 
     def __init__(self):
         super().__init__()
@@ -45,7 +32,7 @@ class ClientAwaiter(QObject):
     def _new_connection(self):
         while self._tcp_server.hasPendingConnections():
             client_socket = self._tcp_server.nextPendingConnection()
-            client_connection = ClientConnection(client_socket)
+            client_connection = Connection(client_socket)
             self.client_connected.emit(client_connection)
 
 
@@ -59,7 +46,8 @@ class Server(QCoreApplication):
         self._client_awaiter.client_connected.connect(self._on_client_connected)
 
     def _on_client_connected(self, client_connection):
-        print('Client {} connected'.format(client_connection.address))
+        print('Client {} connected'.format(client_connection.remote_address))
+        client_connection.send('kek')
 
 if __name__ == '__main__':
     sys.exit(Server(sys.argv).exec_())

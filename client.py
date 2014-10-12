@@ -5,12 +5,9 @@ from PyQt4.QtNetwork import *
 from PyQt4.QtGui import *
 
 import config
-
+from common import *
 
 class ServerMonitor(QObject):
-    server_found = pyqtSignal(str)
-    server_lost = pyqtSignal(str)
-
     def __init__(self):
         super().__init__()
 
@@ -47,6 +44,9 @@ class ServerMonitor(QObject):
                 self._servers.pop(address)
                 self.server_lost.emit(address)
 
+    server_found = pyqtSignal(str)
+    server_lost = pyqtSignal(str)
+
 
 class ServerListModel(QAbstractListModel):
     def __init__(self, server_monitor):
@@ -57,14 +57,6 @@ class ServerListModel(QAbstractListModel):
         self._server_monitor = server_monitor
         self._server_monitor.server_found.connect(self._on_server_found)
         self._server_monitor.server_lost.connect(self._on_server_lost)
-
-    def rowCount(self, parent=None):
-        return len(self._servers)
-
-    def data(self, index, role=None):
-        if role == Qt.DisplayRole:
-            return self._servers[index.row()]
-        return None
 
     def _on_server_found(self, address):
         i = len(self._servers)
@@ -78,10 +70,16 @@ class ServerListModel(QAbstractListModel):
         self._servers.pop(i)
         self.endRemoveRows()
 
+    def rowCount(self, parent=None):
+        return len(self._servers)
+
+    def data(self, index, role=None):
+        if role == Qt.DisplayRole:
+            return self._servers[index.row()]
+        return None
+
 
 class MainWindow(QMainWindow):
-    server_picked = pyqtSignal(str)
-
     def __init__(self):
         super().__init__()
 
@@ -101,28 +99,15 @@ class MainWindow(QMainWindow):
     def server_list_model(self, model):
         self._server_list.setModel(model)
 
+    server_picked = pyqtSignal(str)
 
-class ServerConnection(QObject):
-    class Failed(Exception):
-        pass
 
-    def __init__(self, address):
-        super().__init__()
-
-        self._tcp_socket = QTcpSocket()
-        self._tcp_socket.connectToHost(address, config.connection_port)
-        if not self._tcp_socket.waitForConnected(int(config.connection_timeout * 1000)):
-            raise ServerConnection.Failed(self._tcp_socket.errorString())
-
-    @property
-    def address(self):
-        address = self._tcp_socket.peerAddress()
-        if address == QHostAddress.Null:
-            return None
-        return address.toString()
-
-    def disconnect(self):
-        self._tcp_socket.close()
+def connect(address):
+    tcp_socket = QTcpSocket()
+    tcp_socket.connectToHost(address, config.connection_port)
+    if not tcp_socket.waitForConnected(int(config.connection_timeout * 1000)):
+        raise Connection.Failure(tcp_socket.errorString())
+    return Connection(tcp_socket)
 
 
 class Client(QApplication):
@@ -141,14 +126,19 @@ class Client(QApplication):
     def _on_server_picked(self, server_address):
         print('Trying to connect to {}'.format(server_address))
         try:
-            self._server_connection = ServerConnection(server_address)
-            print('Connected to {}'.format(self._server_connection.address))
-        except ServerConnection.Failed as e:
+            self._server_connection = connect(server_address)
+            print('Connected to {}'.format(self._server_connection.remote_address))
+            self._server_connection.received.connect(self._on_received)
+            self._server_connection.disconnected.connect(self._on_disconnected)
+        except Connection.Failure as e:
             print('Failed to connect: {}'.format(e))
 
     def _on_disconnected(self):
         print('Disconnected')
         self._server_connection = None
+
+    def _on_received(self, message):
+        print('Server says: {}'.format(message))
 
 if __name__ == '__main__':
     sys.exit(Client(sys.argv).exec_())
