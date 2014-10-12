@@ -7,61 +7,99 @@ from PyQt4.QtGui import *
 import config
 
 
-class ServerListener(QObject):
-    server_detected = pyqtSignal(str)
+class ServerMonitor(QObject):
+    server_found = pyqtSignal(str)
+    server_lost = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
+
+        self._servers = {}
 
         self._udp_socket = QUdpSocket()
         self._udp_socket.bind(QHostAddress.Any, config.announce_port)
         self._udp_socket.readyRead.connect(self._ready_read)
 
+        self._timer = QTimer()
+        self._timer.timeout.connect(self._remove_dead_servers)
+        self._timer.start(int(config.announce_interval * 1000))
+
     def _ready_read(self):
         while self._udp_socket.hasPendingDatagrams():
             token, address, _ = self._udp_socket.readDatagram(self._udp_socket.pendingDatagramSize())
             if token.decode() == config.announce_token:
-                self.server_detected.emit(address.toString())
+                self._vitalize_server(address.toString())
+
+    def _vitalize_server(self, server_address):
+        if server_address in self._servers:
+            server_elapsed_timer = self._servers[server_address]
+            server_elapsed_timer.restart()
+            return
+        server_elapsed_timer = QElapsedTimer()
+        server_elapsed_timer.start()
+        self._servers[server_address] = server_elapsed_timer
+        self.server_found.emit(server_address)
+
+    def _remove_dead_servers(self):
+        for address in list(self._servers.keys()):
+            elapsed_timer = self._servers[address]
+            if elapsed_timer.elapsed() / 1000.0 >= 2 * config.announce_interval:
+                self._servers.pop(address)
+                self.server_lost.emit(address)
 
 
-class ServerList(QMainWindow):
-    _dead_interval = 2 * config.announce_interval
+class ServerListModel(QAbstractListModel):
+    def __init__(self, server_monitor):
+        super().__init__()
 
+        self._servers = []
+
+        self._server_monitor = server_monitor
+        self._server_monitor.server_found.connect(self._on_server_found)
+        self._server_monitor.server_lost.connect(self._on_server_lost)
+
+    def rowCount(self, parent=None):
+        return len(self._servers)
+
+    def data(self, index, role=None):
+        if role == Qt.DisplayRole:
+            return self._servers[index.row()]
+        return None
+
+    def _on_server_found(self, address):
+        i = len(self._servers)
+        self.beginInsertRows(QModelIndex(), i, i)
+        self._servers.append(address)
+        self.endInsertRows()
+
+    def _on_server_lost(self, address):
+        i = self._servers.index(address)
+        self.beginRemoveRows(QModelIndex(), i, i)
+        self._servers.pop(i)
+        self.endRemoveRows()
+
+
+class MainWindow(QMainWindow):
     server_picked = pyqtSignal(str)
-
-    def update_server(self, server_address):
-        for item in map(self._servers.item, range(self._servers.count())):
-            if item.text() == server_address:
-                timer = item.data(Qt.UserRole)
-                timer.restart()
-                return
-        item = QListWidgetItem(server_address)
-        timer = QElapsedTimer()
-        timer.start()
-        item.setData(Qt.UserRole, timer)
-        self._servers.addItem(item)
 
     def __init__(self):
         super().__init__()
 
-        self._servers = QListWidget(self)
-        self._servers.itemDoubleClicked.connect(self._on_pick)
-        self.setCentralWidget(self._servers)
+        self._server_list = QListView(self)
+        self._server_list.doubleClicked.connect(self._server_picked)
+        self.setCentralWidget(self._server_list)
 
-        self._server_dropper = QTimer()
-        self._server_dropper.timeout.connect(self._drop_dead_servers)
-        self._server_dropper.start(int(ServerList._dead_interval * 1000))
-
-    def _on_pick(self, item):
-        address = item.text()
+    def _server_picked(self, index):
+        address = self.server_list_model.data(index, Qt.DisplayRole)
         self.server_picked.emit(address)
 
-    def _drop_dead_servers(self):
-        for i in range(self._servers.count()):
-            item = self._servers.item(i)
-            timer = item.data(Qt.UserRole)
-            if timer.elapsed() / 1000.0 > ServerList._dead_interval:
-                self._servers.takeItem(i)
+    @property
+    def server_list_model(self):
+        return self._server_list.model()
+
+    @server_list_model.setter
+    def server_list_model(self, model):
+        self._server_list.setModel(model)
 
 
 class ServerConnection(QObject):
@@ -91,30 +129,26 @@ class Client(QApplication):
     def __init__(self, argv):
         super().__init__(argv)
 
-        self.server_listener = ServerListener()
-        self.server_listener.server_detected.connect(self._on_server_detected)
+        self._server_monitor = ServerMonitor()
 
-        self.server_list = ServerList()
-        self.server_list.server_picked.connect(self._on_server_picked)
-        self.server_list.show()
+        self._main_window = MainWindow()
+        self._main_window.server_list_model = ServerListModel(self._server_monitor)
+        self._main_window.server_picked.connect(self._on_server_picked)
+        self._main_window.show()
 
-        self.server_connection = None
-
-    def _on_server_detected(self, server_address):
-        #print('Server {} detected'.format(server_address))
-        self.server_list.update_server(server_address)
+        self._server_connection = None
 
     def _on_server_picked(self, server_address):
         print('Trying to connect to {}'.format(server_address))
         try:
-            self.server_connection = ServerConnection(server_address)
-            print('Connected to {}'.format(self.server_connection.address))
+            self._server_connection = ServerConnection(server_address)
+            print('Connected to {}'.format(self._server_connection.address))
         except ServerConnection.Failed as e:
             print('Failed to connect: {}'.format(e))
 
     def _on_disconnected(self):
         print('Disconnected')
-        self.server_connection = None
+        self._server_connection = None
 
 if __name__ == '__main__':
     sys.exit(Client(sys.argv).exec_())
