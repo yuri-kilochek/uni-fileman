@@ -61,6 +61,21 @@ class _MainWindow(_QtGui.QMainWindow):
         self._server_list.setModel(model)
 
 
+class _ServerConnection(_Connection):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        print('Connected to server'.format(self.remote_address))
+
+        self.send('HUEHUEHUE')
+
+    def _on_received(self, message):
+        print('Server sent: {}'.format(message))
+
+    def _on_disconnected(self, reason):
+        print('Server disconnected' + ('' if reason is None else ': {}'.format(reason)))
+
+
 class _Client(_QtGui.QApplication):
     def __init__(self, argv):
         super().__init__(argv)
@@ -75,24 +90,15 @@ class _Client(_QtGui.QApplication):
         self._server_connection = None
 
     def _on_server_picked(self, server_address):
-        print('Trying to connect to {}'.format(server_address))
+        print('Trying to connect to server at {}'.format(server_address))
         try:
-            self._server_connection = _Connection(server_address)
-            print('Connected to {}'.format(self._server_connection.remote_address))
-            self._server_connection.received.connect(self._on_received)
-            self._server_connection.disconnected.connect(self._on_disconnected)
+            self._server_connection = _ServerConnection(server_address)
+            def forget(_):
+                self._server_connection = None
+            self._server_connection.disconnected.connect(forget)
         except _Connection.Failure as e:
             print('Failed to connect: {}'.format(e))
 
-    def _on_received(self, message):
-        print('Server says: {}'.format(message))
-
-    def _on_disconnected(self, reason):
-        if reason is None:
-            print('Disconnected')
-        else:
-            print('Disconnected: {}'.format(reason))
-        self._server_connection = None
 
 if __name__ == '__main__':
     _sys.exit(_Client(_sys.argv).exec_())
