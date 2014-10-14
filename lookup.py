@@ -4,13 +4,13 @@ import PyQt4.QtNetwork as _QtNetwork
 import config as _config
 
 
-class ServerAnnouncer:
+class Announcer:
     def __init__(self):
         self._udp_socket = _QtNetwork.QUdpSocket()
 
         self._timer = _QtCore.QTimer()
         self._timer.timeout.connect(self._announce)
-        self._timer.start(int(_config.announce_interval * 1000))
+        self._timer.start(int(_config.heartbeat_interval * 1000))
 
     def _announce(self):
         self._udp_socket.writeDatagram(
@@ -20,7 +20,7 @@ class ServerAnnouncer:
         )
 
 
-class ServerMonitor(_QtCore.QObject):
+class Monitor(_QtCore.QObject):
     def __init__(self):
         super().__init__()
 
@@ -32,7 +32,7 @@ class ServerMonitor(_QtCore.QObject):
 
         self._timer = _QtCore.QTimer()
         self._timer.timeout.connect(self._remove_dead_servers)
-        self._timer.start(int(_config.announce_interval * 1000))
+        self._timer.start(int(_config.heartbeat_interval * 1000))
 
     def _ready_read(self):
         while self._udp_socket.hasPendingDatagrams():
@@ -57,6 +57,6 @@ class ServerMonitor(_QtCore.QObject):
     def _remove_dead_servers(self):
         for address in list(self._servers.keys()):
             elapsed_timer = self._servers[address]
-            if elapsed_timer.elapsed() >= int(2 * _config.announce_interval * 1000.0):
+            if elapsed_timer.elapsed() >= int(2 * _config.heartbeat_interval * 1000.0):
                 self._servers.pop(address)
                 self.server_lost.emit(address)

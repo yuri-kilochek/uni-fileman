@@ -3,7 +3,7 @@ import sys as _sys
 import PyQt4.QtCore as _QtCore
 import PyQt4.QtGui as _QtGui
 
-from server_lookup import ServerMonitor as _ServerMonitor
+import lookup as _lookup
 from connection import Connection as _Connection
 
 
@@ -65,7 +65,7 @@ class _Client(_QtGui.QApplication):
     def __init__(self, argv):
         super().__init__(argv)
 
-        self._server_monitor = _ServerMonitor()
+        self._server_monitor = _lookup.Monitor()
 
         self._main_window = _MainWindow()
         self._main_window.server_list_model = _ServerListModel(self._server_monitor)
@@ -84,12 +84,15 @@ class _Client(_QtGui.QApplication):
         except _Connection.Failure as e:
             print('Failed to connect: {}'.format(e))
 
-    def _on_disconnected(self):
-        print('Disconnected')
-        self._server_connection = None
-
     def _on_received(self, message):
         print('Server says: {}'.format(message))
+
+    def _on_disconnected(self, reason):
+        if reason is None:
+            print('Disconnected')
+        else:
+            print('Disconnected: {}'.format(reason))
+        self._server_connection = None
 
 if __name__ == '__main__':
     _sys.exit(_Client(_sys.argv).exec_())

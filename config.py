@@ -1,6 +1,6 @@
 announce_token = 'fileman'
 announce_port = 27072
-announce_interval = 1.0
+heartbeat_interval = 1.0
 
 connection_port = 27073
-connection_timeout = 5.0
+connection_timeout = 5

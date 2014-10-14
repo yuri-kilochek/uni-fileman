@@ -42,53 +42,63 @@ class Connection(_QtCore.QObject):
 
         self._tcp_socket = tcp_socket
         self._tcp_socket.readyRead.connect(self._receive)
+        self._remote_address = self._tcp_socket.peerAddress().toString()
 
         self._receive_buffer = bytearray()
 
+        self._beater = _QtCore.QTimer()
+        self._beater.timeout.connect(self._beat)
+        self._beater.start(int(_config.heartbeat_interval * 1000))
+
     @property
     def remote_address(self):
-        address = self._tcp_socket.peerAddress()
-        if address == _QtNetwork.QHostAddress.Null:
-            return None
-        return address.toString()
+        return self._remote_address
 
-    def send(self, message):
+    def _send_bytes(self, buffer):
         send_buffer = bytearray()
-        data = _pickle.dumps(message)
-        send_buffer += _struct.pack('!I', len(data))
-        send_buffer += data
+        send_buffer += _struct.pack('!I', len(buffer))
+        send_buffer += buffer
         while len(send_buffer) > 0:
             written = self._tcp_socket.write(send_buffer)
             if written == -1:
                 error = self._tcp_socket.errorString()
                 self._disconnect(error)
-                raise Connection.Failed(error)
+                raise Connection.Failure(error)
             del send_buffer[:written]
 
+    def send(self, message):
+        buffer = _pickle.dumps(message)
+        self._send_bytes(buffer)
+
+    received = _QtCore.pyqtSignal(object)
+
     def _receive(self):
-        data = self._tcp_socket.read(self._tcp_socket.bytesAvailable())
-        if data is None:
-            error = self._tcp_socket.errorString()
-            self._disconnect(error)
-            raise Connection.Failed(error)
-        self._receive_buffer += data
+        buffer = self._tcp_socket.read(self._tcp_socket.bytesAvailable())
+        self._receive_buffer += buffer
         while True:
             if len(self._receive_buffer) < 4:
                 break
             size, = _struct.unpack('!I', self._receive_buffer[:4])
             if len(self._receive_buffer) < 4 + size:
                 break
-            message = _pickle.loads(self._receive_buffer[4:4 + size])
+            buffer = self._receive_buffer[4:4 + size]
             del self._receive_buffer[:4 + size]
-            self.received.emit(message)
-
-    received = _QtCore.pyqtSignal(object)
+            if buffer != b'':
+                message = _pickle.loads(buffer)
+                self.received.emit(message)
 
     def _disconnect(self, reason):
-        self._tcp_socket.close()
         self.disconnected.emit(reason)
+        self._tcp_socket.close()
+        self._beater.stop()
 
     def disconnect(self):
         self._disconnect(None)
 
     disconnected = _QtCore.pyqtSignal(str)
+
+    def _beat(self):
+        try:
+            self._send_bytes(b'')
+        except Connection.Failure:
+            pass
