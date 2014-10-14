@@ -5,7 +5,7 @@ import PyQt4.QtGui as _QtGui
 
 import lookup as _lookup
 from connection import Connection as _Connection
-
+import commands as _commands
 
 class _ServerListModel(_QtCore.QAbstractListModel):
     def __init__(self, server_monitor):
@@ -67,10 +67,15 @@ class _ServerConnection(_Connection):
 
         print('Connected to server'.format(self.remote_address))
 
-        self.send('HUEHUEHUE')
+        self.send(_commands.Find('*.py'))
 
     def _on_received(self, message):
         print('Server sent: {}'.format(message))
+        command, response = message
+        if isinstance(command, _commands.Find):
+            print('Found files:')
+            for file in response:
+                print('\t', file)
 
     def _on_disconnected(self, reason):
         print('Server disconnected' + ('' if reason is None else ': {}'.format(reason)))
