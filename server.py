@@ -4,7 +4,7 @@ import PyQt4.QtCore as _QtCore
 
 import lookup as _lookup
 from connection import Connection as _Connection
-from commands import Command as _Command
+import messages as _messages
 
 
 class _ClientConnection(_Connection):
@@ -15,8 +15,11 @@ class _ClientConnection(_Connection):
 
     def _on_received(self, message):
         print('Client {} sent: {}'.format(self.remote_address, message))
-        if isinstance(message, _Command):
-            self.send(message.execute())
+        if type(message) is _messages.Find:
+            message = _messages.Found(_messages.find(message.pattern))
+            self.send(message)
+            return
+        raise AssertionError('Unhandled message: {}'.format(message))
 
     def _on_disconnected(self, reason):
         print('Client {} disconnected'.format(self.remote_address) + ('' if reason is None else ': {}'.format(reason)))
