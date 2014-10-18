@@ -53,7 +53,36 @@ class RenameFailed:
 
 
 def rename(old_name, new_name):
-    if _os.path.exists(new_name):
+    if '/' in new_name:
+        return RenameFailed('\'{}\' is not a valid file name.'.format(new_name))
+    abs_old_name = _os.path.normpath(_os.path.join(_config.root_directory, old_name))
+    abs_new_name = _os.path.normpath(_os.path.join(_config.root_directory, new_name))
+    if not _os.path.exists(abs_old_name):
+        return RenameFailed('\'{}\' does not exist.'.format(old_name))
+    if _os.path.exists(abs_new_name):
         return RenameFailed('\'{}\' already exists.'.format(new_name))
-    _os.rename(old_name, new_name)
+    _os.rename(abs_old_name, abs_new_name)
     return Renamed(old_name, new_name)
+
+
+class Delete:
+    def __init__(self, name):
+        self.name = name
+
+
+class Deleted:
+    def __init__(self, name):
+        self.name = name
+
+
+class DeleteFailed:
+    def __init__(self, reason):
+        self.reason = reason
+
+
+def delete(name):
+    abs_name = _os.path.normpath(_os.path.join(_config.root_directory, name))
+    if not _os.path.exists(abs_name):
+        return DeleteFailed('\'{}\' does not exist.'.format(name))
+    _os.remove(abs_name)
+    return Deleted(name)

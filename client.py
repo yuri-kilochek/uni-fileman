@@ -29,11 +29,16 @@ class _MainWindow(_QtGui.QWidget):
         file_searching.addLayout(pattern_box)
 
         self.__file_list = _QtGui.QListView(self)
+        self.__file_list.setSelectionMode(_QtGui.QListView.ExtendedSelection)
         file_searching.addWidget(self.__file_list)
 
         window_layout.addLayout(file_searching, 4)
 
         self.setLayout(window_layout)
+
+        self.__delete_shortcut = _QtGui.QShortcut(self.__file_list)
+        self.__delete_shortcut.setContext(_QtCore.Qt.WidgetShortcut)
+        self.__delete_shortcut.setKey(_QtCore.Qt.Key_Delete)
 
         self.__search_pattern.textEdited.connect(lambda *_: self.search_pattern_changed.emit())
 
@@ -55,7 +60,14 @@ class _MainWindow(_QtGui.QWidget):
     selected_server_changed = _QtCore.pyqtSignal()
 
     def set_file_list_model(self, file_list_model):
+        if self.__file_list.model() is not None:
+            self.__delete_shortcut.activated.disconnect()
         self.__file_list.setModel(file_list_model)
+        def remove_selected_files():
+            selected_indexes = self.__file_list.selectionModel().selectedIndexes()
+            for selected_index in selected_indexes:
+                self.__file_list.model().removeRow(selected_index.row())
+        self.__delete_shortcut.activated.connect(remove_selected_files)
 
     @property
     def search_pattern(self):
@@ -147,6 +159,9 @@ class _ServerFiles(_QtCore.QAbstractListModel):
             self.__files.pop(i)
             self.endRemoveRows()
             return
+        if type(message) is _messages.DeleteFailed:
+            _QtGui.QMessageBox.warning(None, 'Error', 'Failed to delete file: {}'.format(message.reason), 'Ok')
+            return
         raise AssertionError('Unhandled message: {}'.format(message))
 
     def rowCount(self, parent=None):
@@ -170,15 +185,14 @@ class _ServerFiles(_QtCore.QAbstractListModel):
         if role == _QtCore.Qt.EditRole:
             old_name = self.__files[index.row()]
             new_name = _os.path.join(_os.path.dirname(old_name), data)
-            message = _messages.Rename(old_name, new_name)
-            self.__server_connection.send(message)
+            if new_name != old_name:
+                self.__server_connection.send(_messages.Rename(old_name, new_name))
             return False
         return False
 
     def removeRows(self, start, count, parent=_QtCore.QModelIndex()):
         for name in self.__files[start:start + count]:
-            message = _messages.Delete(name)
-            self.__server_connection.send(message)
+            self.__server_connection.send(_messages.Delete(name))
         return False
 
 

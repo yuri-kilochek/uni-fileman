@@ -21,6 +21,9 @@ class _ClientConnection(_Connection):
         if type(message) is _messages.Rename:
             self.send(_messages.rename(message.old_name, message.new_name))
             return
+        if type(message) is _messages.Delete:
+            self.send(_messages.delete(message.name))
+            return
         raise AssertionError('Unhandled message: {}'.format(message))
 
     def _on_disconnected(self, reason):
