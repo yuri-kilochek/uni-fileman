@@ -1,5 +1,4 @@
 import sys as _sys
-import os as _os
 
 import PyQt4.QtCore as _QtCore
 import PyQt4.QtGui as _QtGui
@@ -9,74 +8,218 @@ from connection import Connection as _Connection
 import messages as _messages
 
 
-class _MainWindow(_QtGui.QWidget):
+class _ConnectFrame(_QtGui.QWidget):
+    connect_commanded = _QtCore.pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
 
-        window_layout = _QtGui.QHBoxLayout()
+        self.setLayout(_QtGui.QVBoxLayout())
 
-        self.__server_list = _QtGui.QListView(self)
+        header = _QtGui.QLabel()
+        header.setText('Active servers:')
+        self.layout().addWidget(header)
+
+        self.__server_list = _QtGui.QListView()
         self.__server_list.setSelectionMode(_QtGui.QListView.SingleSelection)
-        window_layout.addWidget(self.__server_list, 1)
+        self.layout().addWidget(self.__server_list, 1)
 
-        file_searching = _QtGui.QVBoxLayout()
+        buttons = _QtGui.QHBoxLayout()
 
-        pattern_box = _QtGui.QFormLayout()
+        connect = _QtGui.QPushButton()
+        connect.setText('Connect')
+        connect.pressed.connect(self.__on_connect_pressed)
+        buttons.addWidget(connect, 0)
 
-        self.__search_pattern = _QtGui.QLineEdit(self)
-        pattern_box.addRow('Search pattern:', self.__search_pattern)
+        buttons.setAlignment(_QtCore.Qt.AlignRight)
 
-        file_searching.addLayout(pattern_box)
+        self.layout().addLayout(buttons)
 
-        self.__file_list = _QtGui.QListView(self)
+    def __on_connect_pressed(self):
+        indexes = self.__server_list.selectionModel().selectedIndexes()
+        if len(indexes) == 0:
+            return
+        address = self.__server_list.model().data(indexes[0], _QtCore.Qt.DisplayRole)
+        self.connect_commanded.emit(address)
+
+    def set_server_list(self, server_list):
+        self.__server_list.setModel(server_list)
+
+
+class _LoginFrame(_QtGui.QWidget):
+    login_commanded = _QtCore.pyqtSignal(str, str)
+    disconnect_commanded = _QtCore.pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+
+        self.setLayout(_QtGui.QVBoxLayout())
+
+        form = _QtGui.QFormLayout()
+
+        username = _QtGui.QLineEdit()
+        form.addRow('Username:', username)
+
+        password = _QtGui.QLineEdit()
+        password.setEchoMode(_QtGui.QLineEdit.Password)
+        form.addRow('Password:', password)
+
+        self.layout().addLayout(form, 0)
+
+        self.layout().addStretch(1)
+
+        buttons = _QtGui.QHBoxLayout()
+
+        disconnect = _QtGui.QPushButton()
+        disconnect.setText('Disconnect')
+        disconnect.pressed.connect(self.disconnect_commanded)
+        buttons.addWidget(disconnect, 0)
+
+        buttons.addStretch(1)
+
+        login = _QtGui.QPushButton()
+        login.setText('Login')
+        login.pressed.connect(lambda: self.login_commanded.emit(username.text(), password.text()))
+        buttons.addWidget(login, 0)
+
+        self.layout().addLayout(buttons, 0)
+
+
+class _FilesFrame(_QtGui.QWidget):
+    search_commanded = _QtCore.pyqtSignal(str)
+    rename_commanded = _QtCore.pyqtSignal(str, str)
+    delete_commanded = _QtCore.pyqtSignal(str)
+    logout_commanded = _QtCore.pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+
+        self.setLayout(_QtGui.QVBoxLayout())
+
+        search_box = _QtGui.QHBoxLayout()
+
+        search_label = _QtGui.QLabel()
+        search_label.setText('File name pattern:')
+        search_box.addWidget(search_label, 0)
+
+        search_pattern = _QtGui.QLineEdit()
+        search_box.addWidget(search_pattern, 1)
+
+        search = _QtGui.QPushButton()
+        search.setText('Search')
+        search.pressed.connect(lambda: self.search_commanded.emit(search_pattern.text()))
+        search_box.addWidget(search, 0)
+
+        self.layout().addLayout(search_box, 0)
+
+        self.__file_list = _QtGui.QListView()
         self.__file_list.setSelectionMode(_QtGui.QListView.ExtendedSelection)
-        file_searching.addWidget(self.__file_list)
+        self.layout().addWidget(self.__file_list, 1)
 
-        window_layout.addLayout(file_searching, 4)
+        bottom_buttons = _QtGui.QHBoxLayout()
 
-        self.setLayout(window_layout)
+        logout = _QtGui.QPushButton()
+        logout.setText('Logout')
+        logout.pressed.connect(self.logout_commanded)
+        bottom_buttons.addWidget(logout, 0)
 
-        self.__delete_shortcut = _QtGui.QShortcut(self.__file_list)
-        self.__delete_shortcut.setContext(_QtCore.Qt.WidgetShortcut)
-        self.__delete_shortcut.setKey(_QtCore.Qt.Key_Delete)
+        bottom_buttons.addStretch(1)
 
-        self.__search_pattern.textEdited.connect(lambda *_: self.search_pattern_changed.emit())
+        rename = _QtGui.QPushButton()
+        rename.setText('Rename')
+        rename.pressed.connect(self.__on_rename_pressed)
+        bottom_buttons.addWidget(rename, 0)
 
-    def set_server_list_model(self, server_list_model):
-        if self.__server_list.model() is not None:
-            self.__server_list.selectionModel().selectionChanged.disconnect()
-        self.__server_list.setModel(server_list_model)
-        self.__server_list.selectionModel().selectionChanged.connect(lambda *_: self.selected_server_changed.emit())
+        delete = _QtGui.QPushButton()
+        delete.setText('Delete')
+        delete.pressed.connect(self.__on_delete_pressed)
+        bottom_buttons.addWidget(delete, 0)
 
-    @property
-    def selected_server(self):
-        selected_indexes = self.__server_list.selectionModel().selectedIndexes()
-        if len(selected_indexes) == 0:
-            return None
-        assert len(selected_indexes) == 1
-        selected_index = selected_indexes[0]
-        return self.__server_list.model().data(selected_index, _QtCore.Qt.UserRole)
-
-    selected_server_changed = _QtCore.pyqtSignal()
-
-    def set_file_list_model(self, file_list_model):
-        if self.__file_list.model() is not None:
-            self.__delete_shortcut.activated.disconnect()
-        self.__file_list.setModel(file_list_model)
-        def remove_selected_files():
-            selected_indexes = self.__file_list.selectionModel().selectedIndexes()
-            for selected_index in selected_indexes:
-                self.__file_list.model().removeRow(selected_index.row())
-        self.__delete_shortcut.activated.connect(remove_selected_files)
+        self.layout().addLayout(bottom_buttons, 0)
 
     @property
-    def search_pattern(self):
-        return self.__search_pattern.text()
+    def __selected_files(self):
+        files = []
+        for index in self.__file_list.selectionModel().selectedIndexes():
+            file = self.__file_list.model().data(index, _QtCore.Qt.DisplayRole)
+            files.append(file)
+        return files
 
-    search_pattern_changed = _QtCore.pyqtSignal()
+    def __on_rename_pressed(self):
+        for old_name in self.__selected_files:
+            new_name, ok = _QtGui.QInputDialog.getText(None, 'Rename', 'File name:', _QtGui.QLineEdit.Normal, old_name)
+            if ok:
+                self.rename_commanded.emit(old_name, new_name)
+
+    def __on_delete_pressed(self):
+        for file in self.__selected_files:
+            button = _QtGui.QMessageBox.question(None, 'Delete', 'Are you sure you want to delete \'{}\'?'.format(file),
+                                                 _QtGui.QMessageBox.Yes, _QtGui.QMessageBox.No)
+            if button == _QtGui.QMessageBox.Yes:
+                self.delete_commanded.emit(file)
+
+    def set_file_list(self, file_list):
+        self.__file_list.setModel(file_list)
 
 
-class _ActiveServers(_QtCore.QAbstractListModel):
+class _MainWindow(_QtGui.QWidget):
+    connect_commanded = _QtCore.pyqtSignal(str)
+    disconnect_commanded = _QtCore.pyqtSignal()
+    login_commanded = _QtCore.pyqtSignal(str, str)
+    logout_commanded = _QtCore.pyqtSignal()
+    search_commanded = _QtCore.pyqtSignal(str)
+    rename_commanded = _QtCore.pyqtSignal(str, str)
+    delete_commanded = _QtCore.pyqtSignal(str)
+
+    def __init__(self):
+        super().__init__()
+
+        self.setLayout(_QtGui.QHBoxLayout())
+
+        self.__connection_frame = _ConnectFrame()
+        self.__connection_frame.connect_commanded.connect(self.connect_commanded)
+        self.layout().addWidget(self.__connection_frame)
+        self.__connection_frame.hide()
+
+        self.__login_frame = _LoginFrame()
+        self.__login_frame.disconnect_commanded.connect(self.disconnect_commanded)
+        self.__login_frame.login_commanded.connect(self.login_commanded)
+        self.layout().addWidget(self.__login_frame)
+        self.__login_frame.hide()
+
+        self.__files_frame = _FilesFrame()
+        self.__files_frame.logout_commanded.connect(self.logout_commanded)
+        self.__files_frame.search_commanded.connect(self.search_commanded)
+        self.__files_frame.rename_commanded.connect(self.rename_commanded)
+        self.__files_frame.delete_commanded.connect(self.delete_commanded)
+        self.layout().addWidget(self.__files_frame)
+        self.__files_frame.hide()
+
+        self.show_connection()
+
+    def show_connection(self):
+        self.__connection_frame.show()
+        self.__login_frame.hide()
+        self.__files_frame.hide()
+
+    def show_login(self):
+        self.__connection_frame.hide()
+        self.__login_frame.show()
+        self.__files_frame.hide()
+
+    def show_files(self):
+        self.__connection_frame.hide()
+        self.__login_frame.hide()
+        self.__files_frame.show()
+
+    def set_server_list(self, server_list):
+        self.__connection_frame.set_server_list(server_list)
+
+    def set_file_list(self, file_list):
+        self.__files_frame.set_file_list(file_list)
+
+
+class _ActiveServerList(_QtCore.QAbstractListModel):
     def __init__(self):
         super().__init__()
 
@@ -107,116 +250,122 @@ class _ActiveServers(_QtCore.QAbstractListModel):
         return None
 
 
-class _ServerFiles(_QtCore.QAbstractListModel):
-    def __init__(self, server_address):
+class _ServerFileList(_QtCore.QAbstractListModel):
+    def __init__(self, server_connection):
         super().__init__()
 
-        self.__filter_pattern = ''
+        self.__on_received_slot = self.__on_received
 
         self.__files = []
 
-        self.__server_connection = _Connection(server_address)
-        self.__server_connection.received.connect(self.__on_received)
-
-        self.__refresh()
-
-    def __refresh(self):
-        self.__server_connection.send(_messages.Find(self.__filter_pattern))
-
-    @property
-    def filter_pattern(self):
-        return self.__filter_pattern
-
-    @filter_pattern.setter
-    def filter_pattern(self, filter_pattern):
-        self.__filter_pattern = filter_pattern
-        self.__refresh()
+        self.__server_connection = server_connection
+        self.__server_connection.received.connect(self.__on_received_slot)
 
     def __on_received(self, message):
         print('Server sent {}'.format(message))
-        if type(message) is _messages.Found:
+        if type(message) is _messages.SetAll:
             self.beginResetModel()
-            self.__files = list(message.files)
+            self.__files = message.files
             self.endResetModel()
             return
-        if type(message) is _messages.Renamed:
+        if type(message) is _messages.Change:
             i = self.__files.index(message.old_name)
-            if _messages.match(message.new_name, self.filter_pattern):
-                self.__files[i] = message.new_name
-                index = self.createIndex(i, 0)
-                self.dataChanged.emit(index, index)
-            else:
-                self.beginRemoveRows(_QtCore.QModelIndex(), i, i)
-                self.__files.pop(i)
-                self.endRemoveRows()
+            self.__files[i] = message.new_name
+            index = self.createIndex(i, 0)
+            self.dataChanged.emit(index, index)
             return
-        if type(message) is _messages.RenameFailed:
-            _QtGui.QMessageBox.warning(None, 'Error', 'Failed to rename file: {}'.format(message.reason), 'Ok')
-            return
-        if type(message) is _messages.Deleted:
-            i = self.__files.index(message.name)
+        if type(message) is _messages.Forget:
+            i = self.__files.index(message.file)
             self.beginRemoveRows(_QtCore.QModelIndex(), i, i)
             self.__files.pop(i)
             self.endRemoveRows()
             return
-        if type(message) is _messages.DeleteFailed:
-            _QtGui.QMessageBox.warning(None, 'Error', 'Failed to delete file: {}'.format(message.reason), 'Ok')
+        if type(message) is _messages.Deauthorize:
+            self.__server_connection.received.disconnect(self.__on_received_slot)
             return
-        raise AssertionError('Unhandled message: {}'.format(message))
+        if type(message) is _messages.Error:
+            _QtGui.QMessageBox.warning(None, 'Error', message.description, 'Ok')
+            return
+        raise AssertionError('Unexpected message: {}'.format(message))
 
-    def rowCount(self, parent=None):
+    def rowCount(self, parent=_QtCore.QModelIndex()):
         return len(self.__files)
 
-    def flags(self, index):
-        return _QtCore.Qt.ItemIsEnabled | _QtCore.Qt.ItemIsSelectable | _QtCore.Qt.ItemIsEditable
-
     def data(self, index, role=_QtCore.Qt.DisplayRole):
-        if role in (_QtCore.Qt.DisplayRole, _QtCore.Qt.UserRole):
+        if role == _QtCore.Qt.DisplayRole:
             return self.__files[index.row()]
-        if role == _QtCore.Qt.EditRole:
-            return _os.path.basename(self.__files[index.row()])
         return None
-
-    def setData(self, index, data, role=_QtCore.Qt.EditRole):
-        if role in (_QtCore.Qt.DisplayRole, _QtCore.Qt.UserRole):
-            self.__files[index.row()] = data
-            self.dataChanged.emit(index, index)
-            return True
-        if role == _QtCore.Qt.EditRole:
-            old_name = self.__files[index.row()]
-            new_name = _os.path.join(_os.path.dirname(old_name), data)
-            if new_name != old_name:
-                self.__server_connection.send(_messages.Rename(old_name, new_name))
-            return False
-        return False
-
-    def removeRows(self, start, count, parent=_QtCore.QModelIndex()):
-        for name in self.__files[start:start + count]:
-            self.__server_connection.send(_messages.Delete(name))
-        return False
 
 
 class _Client(_QtGui.QApplication):
     def __init__(self, argv):
         super().__init__(argv)
 
+        self.__server_connection = None
+
         self.__main_window = _MainWindow()
-        self.__main_window.set_server_list_model(_ActiveServers())
-        self.__main_window.selected_server_changed.connect(self.__on_selected_server_changed)
+        self.__main_window.connect_commanded.connect(self.__on_connect_commanded)
+        self.__main_window.login_commanded.connect(self.__on_login_commanded)
+        self.__main_window.disconnect_commanded.connect(self.__on_disconnect_commanded)
+        self.__main_window.search_commanded.connect(self.__on_search_commanded)
+        self.__main_window.rename_commanded.connect(self.__on_rename_commanded)
+        self.__main_window.delete_commanded.connect(self.__on_delete_commanded)
+        self.__main_window.logout_commanded.connect(self.__on_logout_commanded)
         self.__main_window.show()
 
-    def __on_selected_server_changed(self):
-        print('Connection to {}'.format(self.__main_window.selected_server))
-        try:
-            server_files = _ServerFiles(self.__main_window.selected_server)
-            print('Connected')
-            self.__main_window.search_pattern_changed.connect(
-                lambda: _ServerFiles.filter_pattern.fset(server_files, self.__main_window.search_pattern)
-            )
-            self.__main_window.set_file_list_model(server_files)
-        except _Connection.Failure as e:
-            print('Failed to connect: {}'.format(e))
+        self.__main_window.set_server_list(_ActiveServerList())
+        self.__main_window.show_connection()
 
+    def __on_connect_commanded(self, server_address):
+        try:
+            self.__server_connection = _Connection(server_address)
+            self.__main_window.show_login()
+        except _Connection.Failure as e:
+            _QtGui.QMessageBox.critical(None, 'Error', 'Failed to connect to {}: {}'.format(server_address, e))
+
+    def __on_login_commanded(self, username, password):
+        def on_received(message):
+            self.__server_connection.received.disconnect(on_received)
+            if type(message) is _messages.Authorize:
+                self.__main_window.set_file_list(_ServerFileList(self.__server_connection))
+                self.__main_window.show_files()
+                return
+            if type(message) is _messages.Error:
+                _QtGui.QMessageBox.critical(None, 'Error', 'Login failed: {}'.format(message.description))
+                return
+            raise AssertionError('Unexpected message: {}'.format(message))
+
+        self.__server_connection.received.connect(on_received)
+        self.__server_connection.send(_messages.Login(username, password))
+
+    def __on_disconnect_commanded(self):
+        self.__main_window.show_connection()
+        self.__server_connection.disconnect()
+        self.__server_connection = None
+
+    def __on_search_commanded(self, pattern):
+        self.__server_connection.send(_messages.Search(pattern))
+
+    def __on_rename_commanded(self, old_name, new_name):
+        self.__server_connection.send(_messages.Rename(old_name, new_name))
+
+    def __on_delete_commanded(self, file):
+        self.__server_connection.send(_messages.Delete(file))
+
+    def __on_logout_commanded(self):
+        def on_received(message):
+            self.__server_connection.received.disconnect(on_received)
+            if type(message) is _messages.Deauthorize:
+                self.__main_window.show_login()
+                self.__main_window.set_file_list(None)
+                return
+            if type(message) is _messages.Error:
+                _QtGui.QMessageBox.critical(None, 'Error', 'Logout failed: {}'.format(message.description))
+                return
+            raise AssertionError('Unexpected message: {}'.format(message))
+
+        self.__server_connection.received.connect(on_received)
+        self.__server_connection.send(_messages.Logout())
 
 if __name__ == '__main__':
     _sys.exit(_Client(_sys.argv).exec_())
