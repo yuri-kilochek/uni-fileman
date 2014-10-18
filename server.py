@@ -16,8 +16,10 @@ class _ClientConnection(_Connection):
     def _on_received(self, message):
         print('Client {} sent: {}'.format(self.remote_address, message))
         if type(message) is _messages.Find:
-            message = _messages.Found(_messages.find(message.pattern))
-            self.send(message)
+            self.send(_messages.find(message.pattern))
+            return
+        if type(message) is _messages.Rename:
+            self.send(_messages.rename(message.old_name, message.new_name))
             return
         raise AssertionError('Unhandled message: {}'.format(message))
 

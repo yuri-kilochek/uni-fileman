@@ -6,20 +6,12 @@ import config as _config
 
 class Find:
     def __init__(self, pattern):
-        self.__pattern = pattern
-
-    @property
-    def pattern(self):
-        return self.__pattern
+        self.pattern = pattern
 
 
 class Found:
-    def __init__(self, files=()):
-        self.__files = tuple(files)
-
-    @property
-    def files(self):
-        return self.__files
+    def __init__(self, files):
+        self.files = files
 
 
 def match(name, pattern):
@@ -40,4 +32,28 @@ def find(pattern):
             if match(file, pattern):
                 found_files.append(file)
 
-    return found_files
+    return Found(found_files)
+
+
+class Rename:
+    def __init__(self, old_name, new_name):
+        self.old_name = old_name
+        self.new_name = new_name
+
+
+class Renamed:
+    def __init__(self, old_name, new_name):
+        self.old_name = old_name
+        self.new_name = new_name
+
+
+class RenameFailed:
+    def __init__(self, reason):
+        self.reason = reason
+
+
+def rename(old_name, new_name):
+    if _os.path.exists(new_name):
+        return RenameFailed('\'{}\' already exists.'.format(new_name))
+    _os.rename(old_name, new_name)
+    return Renamed(old_name, new_name)

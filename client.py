@@ -129,8 +129,17 @@ class _ServerFiles(_QtCore.QAbstractListModel):
             return
         if type(message) is _messages.Renamed:
             i = self.__files.index(message.old_name)
-            self.__files[i] = message.new_name
-            self.dataChanged(self.createIndex(i, 0))
+            if _messages.match(message.new_name, self.filter_pattern):
+                self.__files[i] = message.new_name
+                index = self.createIndex(i, 0)
+                self.dataChanged.emit(index, index)
+            else:
+                self.beginRemoveRows(_QtCore.QModelIndex(), i, i)
+                self.__files.pop(i)
+                self.endRemoveRows()
+            return
+        if type(message) is _messages.RenameFailed:
+            _QtGui.QMessageBox.warning(None, 'Error', 'Failed to rename file: {}'.format(message.reason), 'Ok')
             return
         if type(message) is _messages.Deleted:
             i = self.__files.index(message.name)
