@@ -8,7 +8,7 @@ import lookup as _lookup
 from connection import Connection as _Connection
 import messages as _messages
 
-import config as _config
+from config import config as _config
 
 _users = {
     'penis': 'cock'
@@ -46,9 +46,9 @@ class _ClientConnection(_Connection):
 
         files = []
 
-        for parent, _, directory_files in _os.walk(_config.root_directory):
+        for parent, _, directory_files in _os.walk(_config['root-directory']):
             for file in directory_files:
-                file = _os.path.relpath(_os.path.join(parent, file), _config.root_directory)
+                file = _os.path.relpath(_os.path.join(parent, file), _config['root-directory'])
                 if _fnmatch(file, pattern):
                     files.append(file)
 
@@ -59,8 +59,8 @@ class _ClientConnection(_Connection):
             self.send(_messages.Error('Rename failed: \'{}\' is not a valid file name.'.format(message.new_name)))
             return
 
-        abs_old_name = _os.path.normpath(_os.path.join(_config.root_directory, message.old_name))
-        abs_new_name = _os.path.normpath(_os.path.join(_config.root_directory, message.new_name))
+        abs_old_name = _os.path.normpath(_os.path.join(_config['root-directory'], message.old_name))
+        abs_new_name = _os.path.normpath(_os.path.join(_config['root-directory'], message.new_name))
 
         if not _os.path.exists(abs_old_name):
             self.send(_messages.Error('Rename failed: \'{}\' does not exist.'.format(message.old_name)))
@@ -74,7 +74,7 @@ class _ClientConnection(_Connection):
         self.send(_messages.Change(message.old_name, message.new_name))
 
     def __on_received_delete(self, message):
-        abs_name = _os.path.normpath(_os.path.join(_config.root_directory, message.name))
+        abs_name = _os.path.normpath(_os.path.join(_config['root-directory'], message.name))
 
         if not _os.path.exists(abs_name):
             self.send(_messages.Error('Delete failed: \'{}\' does not exist.'.format(message.name)))
