@@ -1,7 +1,9 @@
 import sys as _sys
 import os as _os
 from fnmatch import fnmatch as _fnmatch
+import datetime as _datetime
 import io as _io
+
 
 import PyQt4.QtCore as _QtCore
 
@@ -146,10 +148,18 @@ class _ClientConnection(_Connection):
         self.__event = event
 
     def __log_status(self, status):
+        now = _datetime.datetime.now()
+
+        if self.__username is None:
+            username = ''
+        else:
+            username = '<{}>'.format(self.__username)
+
         with _io.open(_config['log-file'], mode='a', encoding='UTF-8') as log_file:
-            log_file.write(self.remote_address.ljust(16))
+            log_file.write('{:04}.{:02}.{:02}-{:02}:{:02}:{:02}.{:03} '.format(
+                now.year, now.month, now.day, now.hour, now.minute, now.second, now.microsecond // 1000))
             log_file.write('| ')
-            log_file.write((self.__username or '').ljust(20))
+            log_file.write('{} {}'.format(self.remote_address, username).ljust(30))
             log_file.write('| ')
             log_file.write(self.__event.ljust(50))
             log_file.write('| ')
