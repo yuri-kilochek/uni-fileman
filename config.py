@@ -9,6 +9,7 @@ config = {
     'heartbeat-interval': 0.5,
     'root-directory': '',
     'log-file': 'log.txt',
+    'users-database': 'users.json',
 }
 
 with _io.open('config.json', mode='r', encoding='UTF-8') as config_file:

@@ -1,9 +1,9 @@
+import io as _io
+import json as _json
 import sys as _sys
 import os as _os
 from fnmatch import fnmatch as _fnmatch
 import datetime as _datetime
-import io as _io
-
 
 import PyQt4.QtCore as _QtCore
 
@@ -12,10 +12,6 @@ from connection import Connection as _Connection
 import messages as _messages
 
 from config import config as _config
-
-_users = {
-    'penis': 'cock'
-}
 
 
 class _ClientConnection(_Connection):
@@ -29,8 +25,11 @@ class _ClientConnection(_Connection):
     def __on_received_login(self, message):
         self.__log_event('Login as \'{}\''.format(message.username))
 
-        if message.username in _users:
-            if message.password == _users[message.username]:
+        with _io.open(_config['users-database'], mode='r', encoding='UTF-8') as users_database:
+            users = _json.load(users_database)
+
+        if message.username in users:
+            if message.password == users[message.username]:
                 self.__username = message.username
                 self.send(_messages.Authorize())
                 self.__log_status('Succeeded')
