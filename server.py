@@ -1,6 +1,7 @@
 import sys as _sys
 import os as _os
 from fnmatch import fnmatch as _fnmatch
+import io as _io
 
 import PyQt4.QtCore as _QtCore
 
@@ -19,30 +20,48 @@ class _ClientConnection(_Connection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        print('Client {} connected'.format(self.remote_address))
-
         self.__username = None
 
+        self.__log('Connect from {}'.format(self.remote_address), 'Succeeded')
+
     def __on_received_login(self, message):
+        self.__log_event('Login as \'{}\''.format(message.username))
+
         if message.username in _users:
             if message.password == _users[message.username]:
                 self.__username = message.username
                 self.send(_messages.Authorize())
+                self.__log_status('Succeeded')
             else:
                 self.send(_messages.Error('Invalid password'))
+                self.__log_status('Failed: Invalid password')
         else:
             self.send(_messages.Error('Unknown user'))
+            self.__log_status('Failed: Unknown user')
 
     def __on_received_logout(self, message):
+        self.__log_event('Logout')
+
         if self.__username is None:
             self.send(_messages.Error('Not logged in'))
+            self.__log_status('Failed: Not logged in')
             return
+
         self.send(_messages.Deauthorize())
+        self.self.__log_status('Succeeded')
+        self.__username = None
 
     def __on_received_search(self, message):
         pattern = message.pattern
         if pattern == '':
             pattern = '*'
+
+        self.__log_event('Search \'{}\''.format(pattern))
+
+        if self.__username is None:
+            self.send(_messages.Error('Not logged in'))
+            self.__log_status('Failed: Not logged in')
+            return
 
         files = []
 
@@ -53,10 +72,19 @@ class _ClientConnection(_Connection):
                     files.append(file)
 
         self.send(_messages.SetAll(files))
+        self.__log_status('Succeeded')
 
     def __on_received_rename(self, message):
+        self.__log_event('Rename \'{}\' to \'{}\''.format(message.old_name, message.new_name))
+
+        if self.__username is None:
+            self.send(_messages.Error('Not logged in'))
+            self.__log_status('Failed: Not logged in')
+            return
+
         if '/' in message.new_name:
             self.send(_messages.Error('Rename failed: \'{}\' is not a valid file name.'.format(message.new_name)))
+            self.__log_status('Failed: \'{}\' is not a valid file name'.format(message.new_name))
             return
 
         abs_old_name = _os.path.normpath(_os.path.join(_config['root-directory'], message.old_name))
@@ -64,28 +92,39 @@ class _ClientConnection(_Connection):
 
         if not _os.path.exists(abs_old_name):
             self.send(_messages.Error('Rename failed: \'{}\' does not exist.'.format(message.old_name)))
+            self.__log_status('Failed: \'{}\' does not exist.'.format(message.old_name))
             return
         if _os.path.exists(abs_new_name):
             self.send(_messages.Error('Rename failed: \'{}\' already exists.'.format(message.new_name)))
+            self.__log_status('Failed: \'{}\' already exists.'.format(message.new_name))
             return
 
         _os.rename(abs_old_name, abs_new_name)
 
         self.send(_messages.Change(message.old_name, message.new_name))
+        self.__log_status('Succeeded')
 
     def __on_received_delete(self, message):
+        self.__log_action('Delete \'{}\''.format(message.name))
+
+        if self.__username is None:
+            self.send(_messages.Error('Not logged in'))
+            self.__log_status('Failed: Not logged in')
+            return
+
         abs_name = _os.path.normpath(_os.path.join(_config['root-directory'], message.name))
 
         if not _os.path.exists(abs_name):
             self.send(_messages.Error('Delete failed: \'{}\' does not exist.'.format(message.name)))
+            self.__log_status('Failed: \'{}\' does not exist.'.format(message.name))
             return
 
         _os.remove(abs_name)
 
         self.send(_messages.Forget(message.name))
+        self.__log_status('Succeeded')
 
     def _on_received(self, message):
-        print('Client {} sent: {}'.format(self.remote_address, message))
         handler = {
             _messages.Login: self.__on_received_login,
             _messages.Logout: self.__on_received_logout,
@@ -98,7 +137,29 @@ class _ClientConnection(_Connection):
         handler(message)
 
     def _on_disconnected(self, reason):
-        print('Client {} disconnected'.format(self.remote_address))
+        if self.__username is not None:
+            self.__log('Logout', 'Succeeded')
+            self.__username = None
+        self.__log('Disconnect', 'Succeeded')
+
+    def __log_event(self, event):
+        self.__event = event
+
+    def __log_status(self, status):
+        with _io.open(_config['log-file'], mode='a', encoding='UTF-8') as log_file:
+            log_file.write(self.remote_address.ljust(16))
+            log_file.write('| ')
+            log_file.write((self.__username or '').ljust(20))
+            log_file.write('| ')
+            log_file.write(self.__event.ljust(50))
+            log_file.write('| ')
+            log_file.write(status)
+            log_file.write('\n')
+        del self.__event
+
+    def __log(self, event, status):
+        self.__log_event(event)
+        self.__log_status(status)
 
 
 class _Server(_QtCore.QCoreApplication):

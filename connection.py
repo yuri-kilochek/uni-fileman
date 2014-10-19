@@ -71,6 +71,8 @@ class Connection(_QtCore.QObject):
                 error = self.__tcp_socket.errorString()
                 self.__disconnect(error)
                 raise Connection.Failure(error)
+            self.__tcp_socket.flush()
+            self.__tcp_socket.waitForBytesWritten(int(_config['connection-timeout'] * 1000))
             del send_buffer[:written]
 
     def send(self, message):
