@@ -26,12 +26,27 @@ class _ConnectFrame(_QtGui.QWidget):
 
         buttons = _QtGui.QHBoxLayout()
 
+        def show_about():
+            import textwrap
+
+            text = '''
+                Fileman (c) 2014
+                    by Yuri Kilochek and Peter Sharapov
+            '''
+
+            _QtGui.QMessageBox.about(None, 'About', textwrap.dedent(text))
+
+        about = _QtGui.QPushButton()
+        about.setText('About...')
+        about.pressed.connect(show_about)
+        buttons.addWidget(about, 0)
+
+        buttons.addStretch(1)
+
         connect = _QtGui.QPushButton()
         connect.setText('Connect')
         connect.pressed.connect(self.__on_connect_pressed)
         buttons.addWidget(connect, 0)
-
-        buttons.setAlignment(_QtCore.Qt.AlignRight)
 
         self.layout().addLayout(buttons)
 
