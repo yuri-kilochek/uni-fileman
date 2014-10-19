@@ -60,7 +60,7 @@ class _ClientConnection(_Connection):
         self.__log_event('Search \'{}\''.format(pattern))
 
         if self.__username is None:
-            self.send(_messages.Error('Not logged in'))
+            self.send(_messages.Error('Search failed: Not logged in'))
             self.__log_status('Failed: Not logged in')
             return
 
@@ -79,7 +79,7 @@ class _ClientConnection(_Connection):
         self.__log_event('Rename \'{}\' to \'{}\''.format(message.old_name, message.new_name))
 
         if self.__username is None:
-            self.send(_messages.Error('Not logged in'))
+            self.send(_messages.Error('Rename failed: Not logged in'))
             self.__log_status('Failed: Not logged in')
             return
 
@@ -109,7 +109,7 @@ class _ClientConnection(_Connection):
         self.__log_action('Delete \'{}\''.format(message.name))
 
         if self.__username is None:
-            self.send(_messages.Error('Not logged in'))
+            self.send(_messages.Error('Delete failed: Not logged in'))
             self.__log_status('Failed: Not logged in')
             return
 
