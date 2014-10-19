@@ -261,32 +261,40 @@ class _ServerFileList(_QtCore.QAbstractListModel):
         self.__server_connection = server_connection
         self.__server_connection.received.connect(self.__on_received_slot)
 
+    def __on_received_set_all(self, message):
+        self.beginResetModel()
+        self.__files = message.files
+        self.endResetModel()
+
+    def __on_received_change(self, message):
+        i = self.__files.index(message.old_name)
+        self.__files[i] = message.new_name
+        index = self.createIndex(i, 0)
+        self.dataChanged.emit(index, index)
+
+    def __on_received_forget(self, message):
+        i = self.__files.index(message.file)
+        self.beginRemoveRows(_QtCore.QModelIndex(), i, i)
+        self.__files.pop(i)
+        self.endRemoveRows()
+
+    def __on_received_deauthorize(self, message):
+        self.__server_connection.received.disconnect(self.__on_received_slot)
+
+    def __on_received_error(self, message):
+        _QtGui.QMessageBox.warning(None, 'Error', message.description, 'Ok')
+
     def __on_received(self, message):
-        print('Server sent {}'.format(message))
-        if type(message) is _messages.SetAll:
-            self.beginResetModel()
-            self.__files = message.files
-            self.endResetModel()
-            return
-        if type(message) is _messages.Change:
-            i = self.__files.index(message.old_name)
-            self.__files[i] = message.new_name
-            index = self.createIndex(i, 0)
-            self.dataChanged.emit(index, index)
-            return
-        if type(message) is _messages.Forget:
-            i = self.__files.index(message.file)
-            self.beginRemoveRows(_QtCore.QModelIndex(), i, i)
-            self.__files.pop(i)
-            self.endRemoveRows()
-            return
-        if type(message) is _messages.Deauthorize:
-            self.__server_connection.received.disconnect(self.__on_received_slot)
-            return
-        if type(message) is _messages.Error:
-            _QtGui.QMessageBox.warning(None, 'Error', message.description, 'Ok')
-            return
-        raise AssertionError('Unexpected message: {}'.format(message))
+        handler = {
+            _messages.SetAll: self.__on_received_set_all,
+            _messages.Change: self.__on_received_change,
+            _messages.Forget: self.__on_received_forget,
+            _messages.Deauthorize: self.__on_received_deauthorize,
+            _messages.Error: self.__on_received_error,
+        }.get(type(message))
+        if handler is None:
+            raise AssertionError('Unexpected message: {}'.format(message))
+        handler(message)
 
     def rowCount(self, parent=_QtCore.QModelIndex()):
         return len(self.__files)
