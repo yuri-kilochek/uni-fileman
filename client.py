@@ -26,21 +26,6 @@ class _ConnectFrame(_QtGui.QWidget):
 
         buttons = _QtGui.QHBoxLayout()
 
-        def show_about():
-            import textwrap
-
-            text = '''
-                Fileman (c) 2014
-                    by Yuri Kilochek and Peter Sharapov
-            '''
-
-            _QtGui.QMessageBox.about(None, 'About', textwrap.dedent(text))
-
-        about = _QtGui.QPushButton()
-        about.setText('About...')
-        about.pressed.connect(show_about)
-        buttons.addWidget(about, 0)
-
         buttons.addStretch(1)
 
         connect = _QtGui.QPushButton()
@@ -177,7 +162,7 @@ class _FilesFrame(_QtGui.QWidget):
         self.__file_list.setModel(file_list)
 
 
-class _MainWindow(_QtGui.QWidget):
+class _MainWindow(_QtGui.QMainWindow):
     connect_commanded = _QtCore.pyqtSignal(str)
     disconnect_commanded = _QtCore.pyqtSignal()
     login_commanded = _QtCore.pyqtSignal(str, str)
@@ -189,43 +174,50 @@ class _MainWindow(_QtGui.QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setLayout(_QtGui.QHBoxLayout())
+        def show_about():
+            import textwrap
+
+            text = '''
+                Fileman (c) 2014
+                    by Yuri Kilochek and Peter Sharapov
+            '''
+
+            _QtGui.QMessageBox.about(None, 'About', textwrap.dedent(text))
+
+        self.menuBar().addMenu('Help').addAction('About').triggered.connect(show_about)
 
         self.__connection_frame = _ConnectFrame()
         self.__connection_frame.connect_commanded.connect(self.connect_commanded)
-        self.layout().addWidget(self.__connection_frame)
-        self.__connection_frame.hide()
 
         self.__login_frame = _LoginFrame()
         self.__login_frame.disconnect_commanded.connect(self.disconnect_commanded)
         self.__login_frame.login_commanded.connect(self.login_commanded)
-        self.layout().addWidget(self.__login_frame)
-        self.__login_frame.hide()
 
         self.__files_frame = _FilesFrame()
         self.__files_frame.logout_commanded.connect(self.logout_commanded)
         self.__files_frame.search_commanded.connect(self.search_commanded)
         self.__files_frame.rename_commanded.connect(self.rename_commanded)
         self.__files_frame.delete_commanded.connect(self.delete_commanded)
-        self.layout().addWidget(self.__files_frame)
-        self.__files_frame.hide()
+
+        self.resize(800, 600)
 
         self.show_connection()
 
+    def __detach_current_frame(self):
+        if self.centralWidget() is not None:
+            self.centralWidget().setParent(None)
+
     def show_connection(self):
-        self.__connection_frame.show()
-        self.__login_frame.hide()
-        self.__files_frame.hide()
+        self.__detach_current_frame()
+        self.setCentralWidget(self.__connection_frame)
 
     def show_login(self):
-        self.__connection_frame.hide()
-        self.__login_frame.show()
-        self.__files_frame.hide()
+        self.__detach_current_frame()
+        self.setCentralWidget(self.__login_frame)
 
     def show_files(self):
-        self.__connection_frame.hide()
-        self.__login_frame.hide()
-        self.__files_frame.show()
+        self.__detach_current_frame()
+        self.setCentralWidget(self.__files_frame)
 
     def set_server_list(self, server_list):
         self.__connection_frame.set_server_list(server_list)
