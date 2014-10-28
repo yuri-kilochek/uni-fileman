@@ -17,7 +17,7 @@ class _ConnectFrame(_QtGui.QWidget):
         self.setLayout(_QtGui.QVBoxLayout())
 
         header = _QtGui.QLabel()
-        header.setText('Active servers:')
+        header.setText('Активные серверы')
         self.layout().addWidget(header)
 
         self.__server_list = _QtGui.QListView()
@@ -29,7 +29,7 @@ class _ConnectFrame(_QtGui.QWidget):
         buttons.addStretch(1)
 
         connect = _QtGui.QPushButton()
-        connect.setText('Connect')
+        connect.setText('Подключиться')
         connect.pressed.connect(self.__on_connect_pressed)
         buttons.addWidget(connect, 0)
 
@@ -58,11 +58,11 @@ class _LoginFrame(_QtGui.QWidget):
         form = _QtGui.QFormLayout()
 
         username = _QtGui.QLineEdit()
-        form.addRow('Username:', username)
+        form.addRow('Пользователь', username)
 
         password = _QtGui.QLineEdit()
         password.setEchoMode(_QtGui.QLineEdit.Password)
-        form.addRow('Password:', password)
+        form.addRow('Пароль', password)
 
         self.layout().addLayout(form, 0)
 
@@ -71,14 +71,14 @@ class _LoginFrame(_QtGui.QWidget):
         buttons = _QtGui.QHBoxLayout()
 
         disconnect = _QtGui.QPushButton()
-        disconnect.setText('Disconnect')
+        disconnect.setText('Отключиться')
         disconnect.pressed.connect(self.disconnect_commanded)
         buttons.addWidget(disconnect, 0)
 
         buttons.addStretch(1)
 
         login = _QtGui.QPushButton()
-        login.setText('Login')
+        login.setText('Войти в систему')
         login.pressed.connect(lambda: self.login_commanded.emit(username.text(), password.text()))
         buttons.addWidget(login, 0)
 
@@ -99,14 +99,14 @@ class _FilesFrame(_QtGui.QWidget):
         search_box = _QtGui.QHBoxLayout()
 
         search_label = _QtGui.QLabel()
-        search_label.setText('File name pattern:')
+        search_label.setText('Маска имени файла')
         search_box.addWidget(search_label, 0)
 
         search_pattern = _QtGui.QLineEdit()
         search_box.addWidget(search_pattern, 1)
 
         search = _QtGui.QPushButton()
-        search.setText('Search')
+        search.setText('Поиск')
         search.pressed.connect(lambda: self.search_commanded.emit(search_pattern.text()))
         search_box.addWidget(search, 0)
 
@@ -119,19 +119,19 @@ class _FilesFrame(_QtGui.QWidget):
         bottom_buttons = _QtGui.QHBoxLayout()
 
         logout = _QtGui.QPushButton()
-        logout.setText('Logout')
+        logout.setText('Выйти из системы')
         logout.pressed.connect(self.logout_commanded)
         bottom_buttons.addWidget(logout, 0)
 
         bottom_buttons.addStretch(1)
 
         rename = _QtGui.QPushButton()
-        rename.setText('Rename')
+        rename.setText('Переименовать')
         rename.pressed.connect(self.__on_rename_pressed)
         bottom_buttons.addWidget(rename, 0)
 
         delete = _QtGui.QPushButton()
-        delete.setText('Delete')
+        delete.setText('Удалить')
         delete.pressed.connect(self.__on_delete_pressed)
         bottom_buttons.addWidget(delete, 0)
 
@@ -147,13 +147,13 @@ class _FilesFrame(_QtGui.QWidget):
 
     def __on_rename_pressed(self):
         for old_name in self.__selected_files:
-            new_name, ok = _QtGui.QInputDialog.getText(None, 'Rename', 'File name:', _QtGui.QLineEdit.Normal, old_name)
+            new_name, ok = _QtGui.QInputDialog.getText(None, 'Переименовать', 'Название файла', _QtGui.QLineEdit.Normal, old_name)
             if ok:
                 self.rename_commanded.emit(old_name, new_name)
 
     def __on_delete_pressed(self):
         for file in self.__selected_files:
-            button = _QtGui.QMessageBox.question(None, 'Delete', 'Are you sure you want to delete \'{}\'?'.format(file),
+            button = _QtGui.QMessageBox.question(None, 'Удалить', 'Вы уверены, что хотите удалить \'{}\'?'.format(file),
                                                  _QtGui.QMessageBox.Yes, _QtGui.QMessageBox.No)
             if button == _QtGui.QMessageBox.Yes:
                 self.delete_commanded.emit(file)
@@ -178,13 +178,13 @@ class _MainWindow(_QtGui.QMainWindow):
             import textwrap
 
             text = '''
-                Fileman (c) 2014
-                    by Yuri Kilochek and Peter Sharapov
+                Fileman (c) 2014 г.
+                    от Килочека Юрия и Шарапова Петра
             '''
 
-            _QtGui.QMessageBox.about(None, 'About', textwrap.dedent(text))
+            _QtGui.QMessageBox.about(None, 'О программе', textwrap.dedent(text))
 
-        self.menuBar().addMenu('Help').addAction('About').triggered.connect(show_about)
+        self.menuBar().addMenu('Помощь').addAction('О программе').triggered.connect(show_about)
 
         self.__connection_frame = _ConnectFrame()
         self.__connection_frame.connect_commanded.connect(self.connect_commanded)
@@ -289,7 +289,7 @@ class _ServerFileList(_QtCore.QAbstractListModel):
         self.__server_connection.received.disconnect(self.__on_received_slot)
 
     def __on_received_error(self, message):
-        _QtGui.QMessageBox.warning(None, 'Error', message.description, 'Ok')
+        _QtGui.QMessageBox.warning(None, 'Ошибка', message.description, 'ОК')
 
     def __on_received(self, message):
         handler = {
@@ -336,7 +336,7 @@ class _Client(_QtGui.QApplication):
             self.__server_connection = _Connection(server_address)
             self.__main_window.show_login()
         except _Connection.Failure as e:
-            _QtGui.QMessageBox.critical(None, 'Error', 'Failed to connect to {}: {}'.format(server_address, e))
+            _QtGui.QMessageBox.critical(None, 'Ошибка', 'Не удалось подключиться к {}: \n{}'.format(server_address, e))
 
     def __on_login_commanded(self, username, password):
         def on_received(message):
@@ -346,7 +346,7 @@ class _Client(_QtGui.QApplication):
                 self.__main_window.show_files()
                 return
             if type(message) is _messages.Error:
-                _QtGui.QMessageBox.critical(None, 'Error', 'Login failed: {}'.format(message.description))
+                _QtGui.QMessageBox.critical(None, 'Ошибка', 'Не удалось войти в систему: \n{}'.format(message.description))
                 return
             raise AssertionError('Unexpected message: {}'.format(message))
 
@@ -375,7 +375,7 @@ class _Client(_QtGui.QApplication):
                 self.__main_window.set_file_list(None)
                 return
             if type(message) is _messages.Error:
-                _QtGui.QMessageBox.critical(None, 'Error', 'Logout failed: {}'.format(message.description))
+                _QtGui.QMessageBox.critical(None, 'Ошибка', 'Не удалось выйти из системы: \n{}'.format(message.description))
                 return
             raise AssertionError('Unexpected message: {}'.format(message))
 
