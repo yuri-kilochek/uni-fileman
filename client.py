@@ -318,6 +318,15 @@ class _Client(_QtGui.QApplication):
 
         self.__server_connection = None
 
+        def on_quit():
+            if self.__server_connection is not None:
+                try:
+                    self.__server_connection.send(_messages.AboutToDisconnect())
+                except _Connection.Failure:
+                    pass
+                self.__server_connection = None
+        self.aboutToQuit.connect(on_quit)
+
         self.__main_window = _MainWindow()
         self.__main_window.connect_commanded.connect(self.__on_connect_commanded)
         self.__main_window.login_commanded.connect(self.__on_login_commanded)
@@ -334,6 +343,7 @@ class _Client(_QtGui.QApplication):
     def __on_connect_commanded(self, server_address):
         try:
             self.__server_connection = _Connection(server_address)
+            self.__server_connection.disconnected.connect(self.__on_disconnected)
             self.__main_window.show_login()
         except _Connection.Failure as e:
             _QtGui.QMessageBox.critical(None, 'Ошибка', 'Не удалось подключиться к {}: \n{}'.format(server_address, e))
@@ -382,5 +392,12 @@ class _Client(_QtGui.QApplication):
         self.__server_connection.received.connect(on_received)
         self.__server_connection.send(_messages.Logout())
 
+    def __on_disconnected(self, reason):
+        if self.__server_connection is not None:
+            self.__server_connection.disconnected.disconnect()
+            self.__main_window.show_connection()
+            _QtGui.QMessageBox.critical(None, 'Ошибка', 'Connection broken unexpectedly')
+
 if __name__ == '__main__':
-    _sys.exit(_Client(_sys.argv).exec_())
+    client = _Client(_sys.argv)
+    _sys.exit(client.exec_())

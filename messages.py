@@ -51,3 +51,7 @@ class Rename:
 class Delete:
     def __init__(self, name):
         self.name = name
+
+
+class AboutToDisconnect:
+    pass

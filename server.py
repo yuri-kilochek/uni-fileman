@@ -4,6 +4,8 @@ import sys as _sys
 import os as _os
 from fnmatch import fnmatch as _fnmatch
 import datetime as _datetime
+import signal as _signal
+
 
 import PyQt4.QtCore as _QtCore
 
@@ -19,6 +21,7 @@ class _ClientConnection(_Connection):
         super().__init__(*args, **kwargs)
 
         self.__username = None
+        self.__client_about_to_disconnect = False
 
         self.__log('Подключение из {}'.format(self.remote_address), 'Успешно')
 
@@ -125,6 +128,9 @@ class _ClientConnection(_Connection):
         self.send(_messages.Forget(message.name))
         self.__log_status('Успешно')
 
+    def __on_received_about_to_disconnect(self, message):
+        self.__client_about_to_disconnect = True
+
     def _on_received(self, message):
         handler = {
             _messages.Login: self.__on_received_login,
@@ -132,16 +138,20 @@ class _ClientConnection(_Connection):
             _messages.Search: self.__on_received_search,
             _messages.Rename: self.__on_received_rename,
             _messages.Delete: self.__on_received_delete,
+            _messages.AboutToDisconnect: self.__on_received_about_to_disconnect,
         }.get(type(message))
         if handler is None:
             raise AssertionError('Unexpected message: {}'.format(message))
         handler(message)
 
     def _on_disconnected(self, reason):
-        if self.__username is not None:
-            self.__log('Выход из системы', 'Успешно')
-            self.__username = None
-        self.__log('Отключение', 'Успешно')
+        if self.__client_about_to_disconnect:
+            if self.__username is not None:
+                self.__log('Выход из системы', 'Успешно')
+                self.__username = None
+            self.__log('Отключение', 'Успешно')
+        else:
+            self.__log('Connection broken unexpectedly', 'Ошибка')
 
     def __log_event(self, event):
         self.__event = event
@@ -175,16 +185,27 @@ class _Server(_QtCore.QCoreApplication):
     def __init__(self, argv):
         super().__init__(argv)
 
+        self._client_connections = set()
+
+        def disconnect_all():
+            for connection in list(self._client_connections):
+                connection.disconnect()
+        self.aboutToQuit.connect(disconnect_all)
+
         self._announcer = _lookup.Announcer()
 
         self._client_awaiter = _ClientConnection.spawn_awaiter()
         self._client_awaiter.connected.connect(self._on_client_connected)
 
-        self._client_connections = set()
-
     def _on_client_connected(self, client_connection):
         client_connection.disconnected.connect(lambda: self._client_connections.remove(client_connection))
         self._client_connections.add(client_connection)
 
+
 if __name__ == '__main__':
-    _sys.exit(_Server(_sys.argv).exec_())
+    server = _Server(_sys.argv)
+
+    _signal.signal(_signal.SIGINT, lambda *_: server.quit())
+    _signal.signal(_signal.SIGTERM, lambda *_: server.quit())
+
+    _sys.exit(server.exec_())
