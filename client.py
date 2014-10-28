@@ -150,17 +150,21 @@ class _FilesFrame(_QtGui.QWidget):
 
     def __on_rename_pressed(self):
         for old_name in self.__selected_files:
-            new_name, ok = _QtGui.QInputDialog.getText(
-                None, _tr('Rename'), _tr('New filename'), _QtGui.QLineEdit.Normal, old_name)
-            if ok:
+            dialog = _QtGui.QInputDialog(self)
+            dialog.setWindowTitle(_tr('Rename'))
+            dialog.setLabelText(_tr('New filename'))
+            dialog.setOkButtonText(_tr('OK'))
+            dialog.setCancelButtonText(_tr('Cancel'))
+            dialog.setTextValue(old_name)
+            if dialog.exec_() == 1:
+                new_name = dialog.textValue()
                 self.rename_commanded.emit(old_name, new_name)
 
     def __on_delete_pressed(self):
         for file in self.__selected_files:
-            button = _QtGui.QMessageBox.question(
-                None, _tr('Delete'), _tr('Are you sure you want to delete \'{filename}\'?').format(filename=file),
-                _QtGui.QMessageBox.Yes, _QtGui.QMessageBox.No)
-            if button == _QtGui.QMessageBox.Yes:
+            button = _QtGui.QMessageBox.question(self, _tr('Delete'),
+                _tr('Are you sure you want to delete \'{filename}\'?').format(filename=file), _tr('Yes'), _tr('No'))
+            if button == 0:
                 self.delete_commanded.emit(file)
 
     def set_file_list(self, file_list):

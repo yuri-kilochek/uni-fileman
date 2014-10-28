@@ -44,5 +44,9 @@
     "Maximize": "Развернуть",
     "Minimize": "Свернуть",
     "Help": "Справка",
-    "Failed to connect to {address}:\n\t{error_description}": "Не удалось выполнить подключение к {address}:\n\t{error_description}"
+    "Failed to connect to {address}:\n\t{error_description}": "Не удалось выполнить подключение к {address}:\n\t{error_description}",
+    "OK": "ОК",
+    "Cancel": "Отмена",
+    "Yes": "Да",
+    "No": "Нет"
 }
