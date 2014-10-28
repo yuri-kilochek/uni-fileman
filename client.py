@@ -184,6 +184,10 @@ class _MainWindow(_QtGui.QMainWindow):
 
             _QtGui.QMessageBox.about(None, 'О программе', textwrap.dedent(text))
 
+        self.menuBar().addMenu('File').addAction('Exit').triggered.connect(_QtGui.QApplication.quit)
+        window_menu = self.menuBar().addMenu('Window')
+        window_menu.addAction('Maximize').triggered.connect(lambda: self.showNormal() if self.isMaximized() else self.showMaximized())
+        window_menu.addAction('Minimize').triggered.connect(self.showMinimized)
         self.menuBar().addMenu('Помощь').addAction('О программе').triggered.connect(show_about)
 
         self.__connection_frame = _ConnectFrame()
