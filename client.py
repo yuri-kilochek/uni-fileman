@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys as _sys
 
 import PyQt4.QtCore as _QtCore
@@ -6,6 +8,7 @@ import PyQt4.QtGui as _QtGui
 import lookup as _lookup
 from connection import Connection as _Connection
 import messages as _messages
+from translation import translate as _tr
 
 
 class _ConnectFrame(_QtGui.QWidget):
@@ -17,7 +20,7 @@ class _ConnectFrame(_QtGui.QWidget):
         self.setLayout(_QtGui.QVBoxLayout())
 
         header = _QtGui.QLabel()
-        header.setText('Активные серверы')
+        header.setText(_tr('Active servers'))
         self.layout().addWidget(header)
 
         self.__server_list = _QtGui.QListView()
@@ -29,7 +32,7 @@ class _ConnectFrame(_QtGui.QWidget):
         buttons.addStretch(1)
 
         connect = _QtGui.QPushButton()
-        connect.setText('Подключиться')
+        connect.setText(_tr('Connect'))
         connect.pressed.connect(self.__on_connect_pressed)
         buttons.addWidget(connect, 0)
 
@@ -58,11 +61,11 @@ class _LoginFrame(_QtGui.QWidget):
         form = _QtGui.QFormLayout()
 
         username = _QtGui.QLineEdit()
-        form.addRow('Пользователь', username)
+        form.addRow(_tr('Username'), username)
 
         password = _QtGui.QLineEdit()
         password.setEchoMode(_QtGui.QLineEdit.Password)
-        form.addRow('Пароль', password)
+        form.addRow(_tr('Password'), password)
 
         self.layout().addLayout(form, 0)
 
@@ -71,14 +74,14 @@ class _LoginFrame(_QtGui.QWidget):
         buttons = _QtGui.QHBoxLayout()
 
         disconnect = _QtGui.QPushButton()
-        disconnect.setText('Отключиться')
+        disconnect.setText(_tr('Disconnect'))
         disconnect.pressed.connect(self.disconnect_commanded)
         buttons.addWidget(disconnect, 0)
 
         buttons.addStretch(1)
 
         login = _QtGui.QPushButton()
-        login.setText('Войти в систему')
+        login.setText(_tr('Login'))
         login.pressed.connect(lambda: self.login_commanded.emit(username.text(), password.text()))
         buttons.addWidget(login, 0)
 
@@ -99,14 +102,14 @@ class _FilesFrame(_QtGui.QWidget):
         search_box = _QtGui.QHBoxLayout()
 
         search_label = _QtGui.QLabel()
-        search_label.setText('Маска имени файла')
+        search_label.setText(_tr('Search pattern'))
         search_box.addWidget(search_label, 0)
 
         search_pattern = _QtGui.QLineEdit()
         search_box.addWidget(search_pattern, 1)
 
         search = _QtGui.QPushButton()
-        search.setText('Поиск')
+        search.setText(_tr('Search'))
         search.pressed.connect(lambda: self.search_commanded.emit(search_pattern.text()))
         search_box.addWidget(search, 0)
 
@@ -119,19 +122,19 @@ class _FilesFrame(_QtGui.QWidget):
         bottom_buttons = _QtGui.QHBoxLayout()
 
         logout = _QtGui.QPushButton()
-        logout.setText('Выйти из системы')
+        logout.setText(_tr('Logout'))
         logout.pressed.connect(self.logout_commanded)
         bottom_buttons.addWidget(logout, 0)
 
         bottom_buttons.addStretch(1)
 
         rename = _QtGui.QPushButton()
-        rename.setText('Переименовать')
+        rename.setText(_tr('Rename'))
         rename.pressed.connect(self.__on_rename_pressed)
         bottom_buttons.addWidget(rename, 0)
 
         delete = _QtGui.QPushButton()
-        delete.setText('Удалить')
+        delete.setText(_tr('Delete'))
         delete.pressed.connect(self.__on_delete_pressed)
         bottom_buttons.addWidget(delete, 0)
 
@@ -147,14 +150,16 @@ class _FilesFrame(_QtGui.QWidget):
 
     def __on_rename_pressed(self):
         for old_name in self.__selected_files:
-            new_name, ok = _QtGui.QInputDialog.getText(None, 'Переименовать', 'Название файла', _QtGui.QLineEdit.Normal, old_name)
+            new_name, ok = _QtGui.QInputDialog.getText(
+                None, _tr('Rename'), _tr('New filename'), _QtGui.QLineEdit.Normal, old_name)
             if ok:
                 self.rename_commanded.emit(old_name, new_name)
 
     def __on_delete_pressed(self):
         for file in self.__selected_files:
-            button = _QtGui.QMessageBox.question(None, 'Удалить', 'Вы уверены, что хотите удалить \'{}\'?'.format(file),
-                                                 _QtGui.QMessageBox.Yes, _QtGui.QMessageBox.No)
+            button = _QtGui.QMessageBox.question(
+                None, _tr('Delete'), _tr('Are you sure you want to delete \'{filename}\'?').format(filename=file),
+                _QtGui.QMessageBox.Yes, _QtGui.QMessageBox.No)
             if button == _QtGui.QMessageBox.Yes:
                 self.delete_commanded.emit(file)
 
@@ -174,21 +179,17 @@ class _MainWindow(_QtGui.QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.setWindowTitle('Fileman')
+
         def show_about():
-            import textwrap
+            _QtGui.QMessageBox.about(None, _tr('About'), '{}\n\t{}'.format(
+                _tr('Fileman (c) 2014'), _tr('made by Yuri Kilochek and Peter Sharapov')))
 
-            text = '''
-                Fileman (c) 2014 г.
-                    от Килочека Юрия и Шарапова Петра
-            '''
-
-            _QtGui.QMessageBox.about(None, 'О программе', textwrap.dedent(text))
-
-        self.menuBar().addMenu('File').addAction('Exit').triggered.connect(_QtGui.QApplication.quit)
-        window_menu = self.menuBar().addMenu('Window')
-        window_menu.addAction('Maximize').triggered.connect(lambda: self.showNormal() if self.isMaximized() else self.showMaximized())
-        window_menu.addAction('Minimize').triggered.connect(self.showMinimized)
-        self.menuBar().addMenu('Помощь').addAction('О программе').triggered.connect(show_about)
+        self.menuBar().addMenu(_tr('File')).addAction(_tr('Exit')).triggered.connect(_QtGui.QApplication.quit)
+        window_menu = self.menuBar().addMenu(_tr('Window'))
+        window_menu.addAction(_tr('Maximize')).triggered.connect(lambda: self.showNormal() if self.isMaximized() else self.showMaximized())
+        window_menu.addAction(_tr('Minimize')).triggered.connect(self.showMinimized)
+        self.menuBar().addMenu(_tr('Help')).addAction(_tr('About')).triggered.connect(show_about)
 
         self.__connection_frame = _ConnectFrame()
         self.__connection_frame.connect_commanded.connect(self.connect_commanded)
@@ -293,7 +294,7 @@ class _ServerFileList(_QtCore.QAbstractListModel):
         self.__server_connection.received.disconnect(self.__on_received_slot)
 
     def __on_received_error(self, message):
-        _QtGui.QMessageBox.warning(None, 'Ошибка', message.description, 'ОК')
+        _QtGui.QMessageBox.warning(None, _tr('Error'), message.description, _tr('OK'))
 
     def __on_received(self, message):
         handler = {
@@ -350,7 +351,8 @@ class _Client(_QtGui.QApplication):
             self.__server_connection.disconnected.connect(self.__on_disconnected)
             self.__main_window.show_login()
         except _Connection.Failure as e:
-            _QtGui.QMessageBox.critical(None, 'Ошибка', 'Не удалось подключиться к {}: \n{}'.format(server_address, e))
+            _QtGui.QMessageBox.critical(None, _tr('Error'), _tr('Failed to connect to {address}:\n\t{error_description}'
+                    .format(address=server_address, error_description=e)))
 
     def __on_login_commanded(self, username, password):
         def on_received(message):
@@ -360,7 +362,7 @@ class _Client(_QtGui.QApplication):
                 self.__main_window.show_files()
                 return
             if type(message) is _messages.Error:
-                _QtGui.QMessageBox.critical(None, 'Ошибка', 'Не удалось войти в систему: \n{}'.format(message.description))
+                _QtGui.QMessageBox.critical(None, _tr('Error'), message.description)
                 return
             raise AssertionError('Unexpected message: {}'.format(message))
 
@@ -389,7 +391,7 @@ class _Client(_QtGui.QApplication):
                 self.__main_window.set_file_list(None)
                 return
             if type(message) is _messages.Error:
-                _QtGui.QMessageBox.critical(None, 'Ошибка', 'Не удалось выйти из системы: \n{}'.format(message.description))
+                _QtGui.QMessageBox.critical(None, _tr('Error'), message.description)
                 return
             raise AssertionError('Unexpected message: {}'.format(message))
 
@@ -400,7 +402,7 @@ class _Client(_QtGui.QApplication):
         if self.__server_connection is not None:
             self.__server_connection.disconnected.disconnect()
             self.__main_window.show_connection()
-            _QtGui.QMessageBox.critical(None, 'Ошибка', 'Connection broken unexpectedly')
+            _QtGui.QMessageBox.critical(None, _tr('Error'), _tr('Connection broken unexpectedly'))
 
 if __name__ == '__main__':
     client = _Client(_sys.argv)

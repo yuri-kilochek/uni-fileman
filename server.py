@@ -14,6 +14,7 @@ from connection import Connection as _Connection
 import messages as _messages
 
 from config import config as _config
+from translation import translate as _tr
 
 
 class _ClientConnection(_Connection):
@@ -23,10 +24,10 @@ class _ClientConnection(_Connection):
         self.__username = None
         self.__client_about_to_disconnect = False
 
-        self.__log('Подключение из {}'.format(self.remote_address), 'Успешно')
+        self.__log(_tr('Connected from {address}').format(address=self.remote_address), _tr('Success'))
 
     def __on_received_login(self, message):
-        self.__log_event('Вход в систему как \'{}\''.format(message.username))
+        self.__log_event(_tr('Logging in as \'{username}\'').format(username=message.username))
 
         with _io.open(_config['users-database'], mode='r', encoding='UTF-8') as users_database:
             users = _json.load(users_database)
@@ -35,24 +36,24 @@ class _ClientConnection(_Connection):
             if message.password == users[message.username]:
                 self.__username = message.username
                 self.send(_messages.Authorize())
-                self.__log_status('Успешно')
+                self.__log_status(_tr('Success'))
             else:
-                self.send(_messages.Error('Неверный пароль'))
-                self.__log_status('Ошибка: Неверный пароль')
+                self.send(_messages.Error(_tr('Login failed: {reason}').format(reason=_tr('Invalid password'))))
+                self.__log_status(_tr('Error: {reason}').format(reason=_tr('Invalid password')))
         else:
-            self.send(_messages.Error('Пользователя с таким именем не существует'))
-            self.__log_status('Ошибка: Пользователя с таким именем не существует')
+            self.send(_messages.Error(_tr('Login failed: {reason}').format(reason=_tr('Unknown username'))))
+            self.__log_status(_tr('Error: {reason}').format(reason=_tr('Unknown username')))
 
     def __on_received_logout(self, message):
-        self.__log_event('Выход из системы')
+        self.__log_event(_tr('Logging out'))
 
         if self.__username is None:
-            self.send(_messages.Error('Не был выполнен вход в систему'))
-            self.__log_status('Ошибка: Не был выполнен вход в систему')
+            self.send(_messages.Error(_tr('Logout failed: {reason}').format(reason=_tr('Not logged in'))))
+            self.__log_status(_tr('Error: {reason}').format(reason=_tr('Not logged in')))
             return
 
         self.send(_messages.Deauthorize())
-        self.__log_status('Успешно')
+        self.__log_status(_tr('Success'))
         self.__username = None
 
     def __on_received_search(self, message):
@@ -60,11 +61,11 @@ class _ClientConnection(_Connection):
         if pattern == '':
             pattern = '*'
 
-        self.__log_event('Поиск \'{}\''.format(pattern))
+        self.__log_event(_tr('Searching for \'{pattern}\'').format(pattern=pattern))
 
         if self.__username is None:
-            self.send(_messages.Error('Поиск не удался: Не был выполнен вход в систему'))
-            self.__log_status('Ошибка: Не был выполнен вход в систему')
+            self.send(_messages.Error(_tr('Search failed: {reason}').format(reason=_tr('Not logged in'))))
+            self.__log_status(_tr('Error: {reason}').format(reason=_tr('Not logged in')))
             return
 
         files = []
@@ -76,57 +77,67 @@ class _ClientConnection(_Connection):
                     files.append(file)
 
         self.send(_messages.SetAll(files))
-        self.__log_status('Успешно')
+        self.__log_status(_tr('Success'))
 
     def __on_received_rename(self, message):
-        self.__log_event('Переименование \'{}\' в \'{}\''.format(message.old_name, message.new_name))
+        self.__log_event(_tr('Renaming {old_filename} to {new_filename}').format(
+            old_filename=message.old_name,
+            new_filename=message.new_name))
 
         if self.__username is None:
-            self.send(_messages.Error('Переименование не удалось: Не был выполнен вход в систему'))
-            self.__log_status('Ошибка: Не был выполнен вход в систему')
+            self.send(_messages.Error(_tr('Rename failed: {reason}').format(reason=_tr('Not logged in'))))
+            self.__log_status(_tr('Error: {reason}').format(reason=_tr('Not logged in')))
             return
 
         if '/' in message.new_name:
-            self.send(_messages.Error('Переименование не удалось: \'{}\' не является допустимым названием для файла.'.format(message.new_name)))
-            self.__log_status('Ошибка: \'{}\' не является допустимым названием для файла'.format(message.new_name))
+            self.send(_messages.Error(_tr('Rename failed: {reason}').format(
+                reason=_tr('{filename} is not a valid file name').format(filename=message.new_name))))
+            self.__log_status(_tr('Error: {reason}').format(
+                reason=_tr('{filename} is not a valid file name').format(filename=message.new_name)))
             return
 
         abs_old_name = _os.path.normpath(_os.path.join(_config['root-directory'], message.old_name))
         abs_new_name = _os.path.normpath(_os.path.join(_config['root-directory'], message.new_name))
 
         if not _os.path.exists(abs_old_name):
-            self.send(_messages.Error('Переименование не удалось: файла с именем \'{}\' не существует.'.format(message.old_name)))
-            self.__log_status('Ошибка: файла с именем \'{}\' не существует.'.format(message.old_name))
+            self.send(_messages.Error(_tr('Rename failed: {reason}').format(
+                reason=_tr('{filename} does not exist').format(filename=message.old_name))))
+            self.__log_status(_tr('Error: {reason}').format(
+                reason=_tr('{filename} does not exist').format(filename=message.old_name)))
             return
         if _os.path.exists(abs_new_name):
-            self.send(_messages.Error('Переименование не удалось: файл с именем \'{}\' уже существует.'.format(message.new_name)))
-            self.__log_status('Ошибка: файл с именем \'{}\' уже существует.'.format(message.new_name))
+            self.send(_messages.Error(_tr('Rename failed: {reason}').format(
+                reason=_tr('{filename} already exists').format(filename=message.new_name))))
+            self.__log_status(_tr('Error: {reason}').format(
+                reason=_tr('{filename} already exists').format(filename=message.new_name)))
             return
 
         _os.rename(abs_old_name, abs_new_name)
 
         self.send(_messages.Change(message.old_name, message.new_name))
-        self.__log_status('Успешно')
+        self.__log_status(_tr('Success'))
 
     def __on_received_delete(self, message):
-        self.__log_event('Удаление \'{}\''.format(message.name))
+        self.__log_event(_tr('Deleting \'{filename}\'').format(filename=message.name))
 
         if self.__username is None:
-            self.send(_messages.Error('Удаление не удалось: Не был выполнен вход в систему'))
-            self.__log_status('Ошибка: Не был выполнен вход в систему')
+            self.send(_messages.Error(_tr('Delete failed: {reason}').format(reason=_tr('Not logged in'))))
+            self.__log_status(_tr('Error: {reason}').format(reason=_tr('Not logged in')))
             return
 
         abs_name = _os.path.normpath(_os.path.join(_config['root-directory'], message.name))
 
         if not _os.path.exists(abs_name):
-            self.send(_messages.Error('Удаление не удалось: файла с именем \'{}\' не существует.'.format(message.name)))
-            self.__log_status('Ошибка: файла с именем \'{}\' не существует.'.format(message.name))
+            self.send(_messages.Error(_tr('Delete failed: {reason}').format(
+                reason=_tr('{filename} does not exist').format(filename=message.name))))
+            self.__log_status(_tr('Error: {reason}').format(
+                reason=_tr('{filename} does not exist').format(filename=message.name)))
             return
 
         _os.remove(abs_name)
 
         self.send(_messages.Forget(message.name))
-        self.__log_status('Успешно')
+        self.__log_status(_tr('Success'))
 
     def __on_received_about_to_disconnect(self, message):
         self.__client_about_to_disconnect = True
@@ -147,11 +158,11 @@ class _ClientConnection(_Connection):
     def _on_disconnected(self, reason):
         if self.__client_about_to_disconnect:
             if self.__username is not None:
-                self.__log('Выход из системы', 'Успешно')
+                self.__log(_tr('Logging out'), _tr('Success'))
                 self.__username = None
-            self.__log('Отключение', 'Успешно')
+            self.__log(_tr('Disconnecting'), _tr('Success'))
         else:
-            self.__log('Connection broken unexpectedly', 'Ошибка')
+            self.__log(_tr('Connection broken unexpectedly'), _tr('Error'))
 
     def __log_event(self, event):
         self.__event = event
