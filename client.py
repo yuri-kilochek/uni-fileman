@@ -376,8 +376,10 @@ class _Client(_QtGui.QApplication):
 
     def __on_disconnect_commanded(self):
         self.__main_window.show_connection()
-        self.__server_connection.disconnect()
+        server_connection = self.__server_connection 
         self.__server_connection = None
+        server_connection.disconnect()
+
 
     def __on_search_commanded(self, pattern):
         self.__server_connection.send(_messages.Search(pattern))
