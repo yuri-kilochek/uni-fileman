@@ -12,5 +12,6 @@ if _config['gui-language'] != 'en_US':
         _translation.update(_json.load(translation_file))
 
 
+# перевести текст
 def translate(text):
     return _translation.get(text, text)

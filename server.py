@@ -19,8 +19,9 @@ import messages as _messages
 from config import config as _config
 from translation import translate as _tr
 
-
+# подключение к слиенту
 class _ClientConnection(_Connection):
+    # конструктор
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -29,6 +30,7 @@ class _ClientConnection(_Connection):
 
         self.__log(_tr('Connected from {address}').format(address=self.remote_address), _tr('Success'))
 
+    # обработчик сообщения "войти"
     def __on_received_login(self, message):
         self.__log_event(_tr('Logging in as \'{username}\'').format(username=message.username))
 
@@ -47,6 +49,7 @@ class _ClientConnection(_Connection):
             self.send(_messages.Error(_tr('Login failed: {reason}').format(reason=_tr('Unknown username'))))
             self.__log_status(_tr('Error: {reason}').format(reason=_tr('Unknown username')))
 
+    # обработчик сообщения "выйти"
     def __on_received_logout(self, message):
         self.__log_event(_tr('Logging out'))
 
@@ -59,6 +62,7 @@ class _ClientConnection(_Connection):
         self.__log_status(_tr('Success'))
         self.__username = None
 
+    # обработчик сообщения "найти"
     def __on_received_search(self, message):
         pattern = message.pattern
         if pattern == '':
@@ -82,6 +86,7 @@ class _ClientConnection(_Connection):
         self.send(_messages.SetAll(files))
         self.__log_status(_tr('Success'))
 
+    # обработчик сообщения "переименовать"
     def __on_received_rename(self, message):
         self.__log_event(_tr('Renaming {old_filename} to {new_filename}').format(
             old_filename=message.old_name,
@@ -120,6 +125,7 @@ class _ClientConnection(_Connection):
         self.send(_messages.Change(message.old_name, message.new_name))
         self.__log_status(_tr('Success'))
 
+    # обработчик сообщения "удалить"
     def __on_received_delete(self, message):
         self.__log_event(_tr('Deleting \'{filename}\'').format(filename=message.name))
 
@@ -142,9 +148,11 @@ class _ClientConnection(_Connection):
         self.send(_messages.Forget(message.name))
         self.__log_status(_tr('Success'))
 
+    # обработчик сообщения "сейчас отключусь"
     def __on_received_about_to_disconnect(self, message):
         self.__client_about_to_disconnect = True
 
+    # обработчик сообщений
     def _on_received(self, message):
         handler = {
             _messages.Login: self.__on_received_login,
@@ -158,6 +166,7 @@ class _ClientConnection(_Connection):
             raise AssertionError('Unexpected message: {}'.format(message))
         handler(message)
 
+    # обработчик собыйтия "отключение"
     def _on_disconnected(self, reason):
         if self.__client_about_to_disconnect:
             if self.__username is not None:
@@ -167,9 +176,11 @@ class _ClientConnection(_Connection):
         else:
             self.__log(_tr('Connection broken unexpectedly'), _tr('Error'))
 
+    # записать в лог суть события
     def __log_event(self, event):
         self.__event = event
 
+    # записать в лог результат события
     def __log_status(self, status):
         now = _datetime.datetime.now()
 
@@ -190,17 +201,21 @@ class _ClientConnection(_Connection):
             log_file.write('\n')
         del self.__event
 
+    # записать событие в лог целиком
     def __log(self, event, status):
         self.__log_event(event)
         self.__log_status(status)
 
 
+# приложение сервера
 class _Server(_QtCore.QCoreApplication):
+    #  конструктор
     def __init__(self, argv):
         super().__init__(argv)
 
         self._client_connections = set()
 
+        # обработчик завершения приложения
         def disconnect_all():
             for connection in list(self._client_connections):
                 connection.disconnect()
@@ -211,6 +226,7 @@ class _Server(_QtCore.QCoreApplication):
         self._client_awaiter = _ClientConnection.spawn_awaiter()
         self._client_awaiter.connected.connect(self._on_client_connected)
 
+    # обработчки собыйтия "клиент подключился"
     def _on_client_connected(self, client_connection):
         client_connection.disconnected.connect(lambda: self._client_connections.remove(client_connection))
         self._client_connections.add(client_connection)
