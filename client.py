@@ -11,12 +11,13 @@ from connection import Connection as _Connection
 import messages as _messages
 from translation import translate as _tr
 
+
 # виджет окна подключения
 class _ConnectFrame(_QtGui.QWidget):
     # нажатие кнопки "подключиться"
     connect_commanded = _QtCore.pyqtSignal(str)
 
-    # конструктор
+    # конструктор класса
     def __init__(self):
         super().__init__()
 
@@ -41,7 +42,7 @@ class _ConnectFrame(_QtGui.QWidget):
 
         self.layout().addLayout(buttons)
 
-    # обработчик нажатия "подключиться"
+    # обработчик нажатия кнопки "подключиться"
     def __on_connect_pressed(self):
         indexes = self.__server_list.selectionModel().selectedIndexes()
         if len(indexes) == 0:
@@ -49,7 +50,7 @@ class _ConnectFrame(_QtGui.QWidget):
         address = self.__server_list.model().data(indexes[0], _QtCore.Qt.DisplayRole)
         self.connect_commanded.emit(address)
 
-    # установить модель списка серверов
+    # установка модели списка серверов
     def set_server_list(self, server_list):
         self.__server_list.setModel(server_list)
 
@@ -61,7 +62,7 @@ class _LoginFrame(_QtGui.QWidget):
     # нажатие кнопки "отключиться"
     disconnect_commanded = _QtCore.pyqtSignal()
 
-    # конструктор
+    # конструктор класса
     def __init__(self):
         super().__init__()
 
@@ -97,7 +98,7 @@ class _LoginFrame(_QtGui.QWidget):
         self.layout().addLayout(buttons, 0)
 
 
-# виджет списка файлов
+# виджет окна работы с файлами сервера
 class _FilesFrame(_QtGui.QWidget):
     # нажатие кнопки "найти"
     search_commanded = _QtCore.pyqtSignal(str)
@@ -108,7 +109,7 @@ class _FilesFrame(_QtGui.QWidget):
     # нажатие кнопки "выйти"
     logout_commanded = _QtCore.pyqtSignal()
 
-    # конструктор
+    # конструктор класса
     def __init__(self):
         super().__init__()
 
@@ -164,7 +165,7 @@ class _FilesFrame(_QtGui.QWidget):
             files.append(file)
         return files
 
-    # обработчик нажатия "переименовать"
+    # обработчик нажатия кнопки "переименовать"
     def __on_rename_pressed(self):
         for old_name in self.__selected_files:
             dialog = _QtGui.QInputDialog(self)
@@ -177,7 +178,7 @@ class _FilesFrame(_QtGui.QWidget):
                 new_name = dialog.textValue()
                 self.rename_commanded.emit(old_name, new_name)
 
-    # обработчик нажатия "удалить"
+    # обработчик нажатия кнопки "удалить"
     def __on_delete_pressed(self):
         for file in self.__selected_files:
             button = _QtGui.QMessageBox.question(self, _tr('Delete'),
@@ -185,12 +186,12 @@ class _FilesFrame(_QtGui.QWidget):
             if button == 0:
                 self.delete_commanded.emit(file)
 
-    # установить модель списка файлов
+    # установка модели списка файлов
     def set_file_list(self, file_list):
         self.__file_list.setModel(file_list)
 
 
-# основное окно
+# основное окно программы
 class _MainWindow(_QtGui.QMainWindow):
     # нажатие кнопки "подключиться"
     connect_commanded = _QtCore.pyqtSignal(str)
@@ -207,13 +208,13 @@ class _MainWindow(_QtGui.QMainWindow):
     # нажатие кнопки "удалить"
     delete_commanded = _QtCore.pyqtSignal(str)
 
-    # коснтруктор
+    # коснтруктор класса
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle('Fileman')
 
-        # показать окно "о программе"
+        # показ окна "о программе"
         def show_about():
             _QtGui.QMessageBox.about(None, _tr('About'), '{}\n\t{}'.format(
                 _tr('Fileman (c) 2014'), _tr('made by Yuri Kilochek and Peter Sharapov')))
@@ -241,38 +242,38 @@ class _MainWindow(_QtGui.QMainWindow):
 
         self.show_connection()
 
-    # извлечь текущий виджет из оконной иерархии (для предотвращения его удаления)
+    # извлечение текущего виджета из оконной иерархии (для предотвращения его удаления)
     def __detach_current_frame(self):
         if self.centralWidget() is not None:
             self.centralWidget().setParent(None)
 
-    # показать окно подключения
+    # показ окна подключения
     def show_connection(self):
         self.__detach_current_frame()
         self.setCentralWidget(self.__connection_frame)
 
-    # показать окно авторизации
+    # показ окна авторизации
     def show_login(self):
         self.__detach_current_frame()
         self.setCentralWidget(self.__login_frame)
 
-    # показать писок файлов
+    # показ списка файлов
     def show_files(self):
         self.__detach_current_frame()
         self.setCentralWidget(self.__files_frame)
 
-    # установить модель списка серверов
+    # установка модели списка серверов
     def set_server_list(self, server_list):
         self.__connection_frame.set_server_list(server_list)
 
-    # установить модель списка файлов
+    # установка модели списка файлов
     def set_file_list(self, file_list):
         self.__files_frame.set_file_list(file_list)
 
 
-# модель списка серверов
+# модель списка доступных серверов
 class _ActiveServerList(_QtCore.QAbstractListModel):
-    # конструктор
+    # конструктор класса
     def __init__(self):
         super().__init__()
 
@@ -300,7 +301,7 @@ class _ActiveServerList(_QtCore.QAbstractListModel):
     def rowCount(self, parent=_QtCore.QModelIndex()):
         return len(self.__servers)
 
-    # содержимое эелемента
+    # содержимое элемента
     def data(self, index, role=_QtCore.Qt.DisplayRole):
         if role in (_QtCore.Qt.DisplayRole, _QtCore.Qt.UserRole):
             return self.__servers[index.row()]
@@ -309,7 +310,7 @@ class _ActiveServerList(_QtCore.QAbstractListModel):
 
 # модель списка файлов на удалённом сервере
 class _ServerFileList(_QtCore.QAbstractListModel):
-    # конструктор
+    # конструктор класса
     def __init__(self, server_connection):
         super().__init__()
 
@@ -320,35 +321,35 @@ class _ServerFileList(_QtCore.QAbstractListModel):
         self.__server_connection = server_connection
         self.__server_connection.received.connect(self.__on_received_slot)
 
-    # обработчик сообщения "обновить весь список список"
+    # специфичный обработчик сообщения "обновить весь список"
     def __on_received_set_all(self, message):
         self.beginResetModel()
         self.__files = message.files
         self.endResetModel()
 
-    # обработчик сообщения "файл изменился"
+    # специфичный обработчик сообщения "файл изменился"
     def __on_received_change(self, message):
         i = self.__files.index(message.old_name)
         self.__files[i] = message.new_name
         index = self.createIndex(i, 0)
         self.dataChanged.emit(index, index)
 
-    # обработчик сообщения "файл пропал"
+    # специфичный обработчик сообщения "файл пропал"
     def __on_received_forget(self, message):
         i = self.__files.index(message.file)
         self.beginRemoveRows(_QtCore.QModelIndex(), i, i)
         self.__files.pop(i)
         self.endRemoveRows()
 
-    # обработчик сообщения "деавторизация"
+    # специфичный обработчик сообщения "деавторизация"
     def __on_received_deauthorize(self, message):
         self.__server_connection.received.disconnect(self.__on_received_slot)
 
-    # обработчик сообщения "ошибка"
+    # специфичный обработчик сообщения "ошибка"
     def __on_received_error(self, message):
         _QtGui.QMessageBox.warning(None, _tr('Error'), message.description, _tr('OK'))
 
-    # обработчик принятых сообщений
+    # общий обработчик принятых сообщений
     def __on_received(self, message):
         handler = {
             _messages.SetAll: self.__on_received_set_all,
@@ -374,13 +375,13 @@ class _ServerFileList(_QtCore.QAbstractListModel):
 
 # приложение клиента
 class _Client(_QtGui.QApplication):
-    # конструктор
+    # конструктор класса
     def __init__(self, argv):
         super().__init__(argv)
 
         self.__server_connection = None
 
-        # обработчки закрытия приложения
+        # обработчик закрытия приложения
         def on_quit():
             if self.__server_connection is not None:
                 try:
@@ -403,7 +404,7 @@ class _Client(_QtGui.QApplication):
         self.__main_window.set_server_list(_ActiveServerList())
         self.__main_window.show_connection()
 
-    # обработчк команды "подключиться"
+    # обработчик команды "подключиться"
     def __on_connect_commanded(self, server_address):
         try:
             self.__server_connection = _Connection(server_address)
@@ -413,7 +414,7 @@ class _Client(_QtGui.QApplication):
             _QtGui.QMessageBox.critical(None, _tr('Error'), _tr('Failed to connect to {address}:\n\t{error_description}'
                     .format(address=server_address, error_description=e)))
 
-    # обработчк команды "войти"
+    # обработчик команды "войти"
     def __on_login_commanded(self, username, password):
         def on_received(message):
             self.__server_connection.received.disconnect(on_received)
@@ -429,26 +430,27 @@ class _Client(_QtGui.QApplication):
         self.__server_connection.received.connect(on_received)
         self.__server_connection.send(_messages.Login(username, password))
 
-    # обработчк команды "отключиться"
+    # обработчик команды "отключиться"
     def __on_disconnect_commanded(self):
         self.__main_window.show_connection()
         server_connection = self.__server_connection 
         self.__server_connection = None
+        server_connection.send(_messages.AboutToDisconnect())
         server_connection.disconnect()
 
-    # обработчк команды "найти"
+    # обработчик команды "найти"
     def __on_search_commanded(self, pattern):
         self.__server_connection.send(_messages.Search(pattern))
 
-    # обработчк команды "переименовать"
+    # обработчик команды "переименовать"
     def __on_rename_commanded(self, old_name, new_name):
         self.__server_connection.send(_messages.Rename(old_name, new_name))
 
-    # обработчк команды "удалить"
+    # обработчик команды "удалить"
     def __on_delete_commanded(self, file):
         self.__server_connection.send(_messages.Delete(file))
 
-    # обработчк команды "выйти"
+    # обработчик команды "выйти"
     def __on_logout_commanded(self):
         def on_received(message):
             self.__server_connection.received.disconnect(on_received)
@@ -464,12 +466,13 @@ class _Client(_QtGui.QApplication):
         self.__server_connection.received.connect(on_received)
         self.__server_connection.send(_messages.Logout())
 
-    # обработчк команды "отключиться"
+    # обработчик команды "отключиться"
     def __on_disconnected(self, reason):
         if self.__server_connection is not None:
             self.__server_connection.disconnected.disconnect()
             self.__main_window.show_connection()
             _QtGui.QMessageBox.critical(None, _tr('Error'), _tr('Connection broken unexpectedly'))
+
 
 if __name__ == '__main__':
     client = _Client(_sys.argv)

@@ -13,9 +13,9 @@ class Connection(_QtCore.QObject):
     class Failure(Exception):
         pass
 
-    # ожидатель входящих подключений
+    # объект, ожидающий входящие подключения
     class Awaiter(_QtCore.QObject):
-        # конструктор
+        # конструктор класса
         def __init__(self, Connection):
             super().__init__()
 
@@ -26,7 +26,7 @@ class Connection(_QtCore.QObject):
             self.__tcp_server.listen(_QtNetwork.QHostAddress.Any, _config['connection-port'])
 
         # событие подключения
-        connected = _QtCore.pyqtSignal(_QtCore.QObject)  # actually Connection but python can't
+        connected = _QtCore.pyqtSignal(_QtCore.QObject)
 
         # обработчик входящего подключения
         def __new_connection(self):
@@ -35,12 +35,12 @@ class Connection(_QtCore.QObject):
                 connection = self.__Connection(tcp_socket=tcp_socket)
                 self.connected.emit(connection)
 
-    # создать ожидатель сходящих подключений
+    # создание ожидателя входящих подключений
     @classmethod
     def spawn_awaiter(cls):
         return Connection.Awaiter(cls)
 
-    # конструктор
+    # конструктор класса
     def __init__(self, address=None, tcp_socket=None):
         assert (address is None) != (tcp_socket is None)
 
@@ -70,7 +70,7 @@ class Connection(_QtCore.QObject):
     def remote_address(self):
         return self.__remote_address
 
-    # отправить блок байтов
+    # отправка блока байтов
     def __send_bytes(self, buffer):
         send_buffer = bytearray()
         send_buffer += _struct.pack('!I', len(buffer))
@@ -85,19 +85,19 @@ class Connection(_QtCore.QObject):
             self.__tcp_socket.waitForBytesWritten(int(_config['connection-timeout'] * 1000))
             del send_buffer[:written]
 
-    # отправить абстрактное сообщение
+    # отправка абстрактного сообщения
     def send(self, message):
         buffer = _pickle.dumps(message)
         self.__send_bytes(buffer)
 
-    # обработчки принятия входящего сообщения
+    # обработчик принятия входящего сообщения
     def _on_received(self, message):
         pass
 
     # событие принятия входящего сообщения
     received = _QtCore.pyqtSignal(object)
 
-    # принять сообщение
+    # принятие сообщения
     def __receive(self):
         buffer = self.__tcp_socket.read(self.__tcp_socket.bytesAvailable())
         self.__receive_buffer += buffer
@@ -117,20 +117,20 @@ class Connection(_QtCore.QObject):
     def _on_disconnected(self, reason):
         pass
 
-    # собйтие разрыва соединения
+    # событие разрыва соединения
     disconnected = _QtCore.pyqtSignal(str)
 
-    # отключиться с ошибкой
+    # отключение с ошибкой
     def __disconnect(self, reason):
         self.disconnected.emit(reason)
         self.__tcp_socket.close()
         self.__beater.stop()
 
-    # отключиться нез ошибки
+    # отключение без ошибки
     def disconnect(self):
         self.__disconnect(None)
 
-    # отправить блок байт нулевого размера для проверки делостности соединения
+    # отправка блок-байта нулевого размера для проверки целостности соединения
     def __beat(self):
         try:
             self.__send_bytes(b'')

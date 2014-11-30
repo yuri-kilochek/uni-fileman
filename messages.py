@@ -1,4 +1,4 @@
-# тут описаны сообщения которыми обмениваются клиент и сервер
+# тут описаны сообщения, которыми обмениваются клиент и сервер
 
 # сообщения от сервера к клиенту
 
@@ -36,6 +36,7 @@ class Error:
     def __init__(self, description):
         self.description = description
 
+
 # сообщения от клиента к серверу
 
 # войти
@@ -43,6 +44,7 @@ class Login:
     def __init__(self, username, password):
         self.username = username
         self.password = password
+
 
 # выйти
 class Logout:
